@@ -1646,7 +1646,7 @@ getValue = [
 		|> _getEntries key
 		|> is matches
 		|> len
-		|> ? [= matches(0)(1)()] void
+		|> ? [= matches(0)(1)()] [= error("Key not found")]
 ];
 `.trim());
 

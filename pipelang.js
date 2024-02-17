@@ -201,9 +201,10 @@ class Operator {
 		if (exactTypes) return this.method(...args);
 
 		const structs = actualTypes.map((type, i) => type.slice(operandTypes[i]));
-		const maxDims = Math.max(...structs
-			.filter((_, i) => !operandTypes[i].ignore)
-			.map(struct => struct.length)
+		const maxDims = Math.max(
+			...structs
+				.filter((_, i) => !operandTypes[i].ignore)
+				.map(struct => struct.length)
 		);
 		const baseIndex = structs.findIndex(
 			(struct, i) => !operandTypes[i].ignore && struct.length === maxDims
@@ -214,7 +215,10 @@ class Operator {
 		const elements = [];
 		for (let i = 0; i < base.length; i++) {
 			const subValue = this.operate(...args.map((arg, argInx) => {
-				return (structs[argInx].length === baseStruct.length && !operandTypes[argInx].ignore) ? arg.at(i) : arg;
+				return (
+					structs[argInx].length === baseStruct.length &&
+					!operandTypes[argInx].ignore
+				) ? arg.at(i) : arg;
 			}));
 			elements.push(subValue);
 		}
@@ -223,36 +227,7 @@ class Operator {
 	}
 	toString() {
 		const normalized = `${OPERATOR_OPEN}${this.operands.map(([type, name]) => type.ignore ? name : type + " " + name).join(", ")} = ${this.sourceCode}${OPERATOR_CLOSE}`
-		// .replace(/\|>/g, "\n|>");
 		return normalized;
-		// let indent = 0;
-		// let result = "";
-		// let nextShouldIndent = false;
-		// let extraIndent = false;
-		// for (let i = 0; i < normalized.length; i++) {
-		// 	const char = normalized[i];
-		// 	if (char === OPERATOR_CLOSE) {
-		// 		indent--;
-		// 		if (extraIndent) indent--;
-		// 		result += "\n" + "\t".repeat(indent);
-		// 	}
-		// 	result += char;
-		// 	if (char === "\n") {
-		// 		if (nextShouldIndent) {
-		// 			indent++;
-		// 			nextShouldIndent = false;
-		// 			extraIndent = true;
-		// 		}
-		// 		result += "\t".repeat(indent);
-		// 	} else if (char === OPERATOR_OPEN) {
-		// 		indent++;
-		// 		if (nextShouldIndent) indent++;
-		// 		result += "\n" + "\t".repeat(indent);
-		// 		nextShouldIndent = true;
-		// 		extraIndent = false;
-		// 	}
-		// }
-		// return result;
 	}
 }
 
@@ -714,12 +689,10 @@ function evalStat(command) {
 
 
 // built-ins
-
-const portedOperators = [
+for (const op of [
 	"+", "-", "*", "/", "%", "**",
 	"&&", "||", "==", "!=", "<=", ">=", "<", ">"
-];
-for (const op of portedOperators) {
+]) {
 	currentScope[op] = new Operator([
 		[new Type("real"), "a"],
 		[new Type("real"), "b"]
@@ -739,7 +712,7 @@ for (const key of Object.getOwnPropertyNames(Math)) {
 
 // required for turing-completeness (-ish)
 currentScope["primitive"] = new Operator([
-	[new Type(null), "value"]
+	[new Type("any"), "value"]
 ], value => +!(value instanceof List));
 
 currentScope["error"] = new Operator([
@@ -755,51 +728,28 @@ currentScope["?"] = new Operator([
 ], (cond, ifTrue, ifFalse) => cond ? ifTrue.operate() : ifFalse.operate());
 
 currentScope["void"] = new Operator([
-	[new Type(null), "terminal"]
+	[new Type("any"), "terminal"]
 ], value => void value);
 
 currentScope["reduce"] = new Operator([
-	[new Type(null), "data"],
-	[new Type(null), "base"],
+	[new Type("any", [null]), "data"],
+	[new Type("any"), "base"],
 	[new Type("operator"), "predicate"],
-], (data, base, predicate) => {
-	if (!(data instanceof List)) throw new TypeError("Cannot reduce non-list");
-	const { operands } = predicate;
-	if (operands.length !== 2) throw new TypeError("Reduce predicate must have two operands");
-	const elType = operands[1][0];
-	const opType = elType.ignore ? new Type(null) : new Type(elType.baseType, [...elType.dimensions, null]);
-	const reducer = new Operator([
-		[opType, "data"]
-	], list => list.elements.reduce((acc, el) => {
-		return predicate.operate(acc, el);
-	}, base));
-	reducer.localName = "reducer";
-	return reducer.operate(data);
-});
+], (data, base, predicate) => data.elements.reduce((acc, el) => {
+	return predicate.operate(acc, el);
+}, base));
 
 currentScope["filter"] = new Operator([
-	[new Type(null), "data"],
+	[new Type("any", [null]), "data"],
 	[new Type("operator"), "predicate"],
-], (data, predicate) => {
-	if (!(data instanceof List)) throw new TypeError("Cannot filter non-list");
-	const { operands } = predicate;
-	if (operands.length !== 1) throw new TypeError("Filter predicate must have one operand");
-	const elType = operands[0][0];
-	const opType = elType.ignore ? new Type(null) : new Type(elType.baseType, [...elType.dimensions, null]);
-	const filterer = new Operator([
-		[opType, "data"]
-	], list => new List(list.elements.filter(el => {
+], (data, predicate) => new List(data.elements.filter(el => {
 		return !!predicate.operate(el);
-	})));
-	filterer.localName = "filterer";
-	return filterer.operate(data);
-});
+})));
 
 currentScope["map"] = new Operator([
-	[new Type(null), "data"],
+	[new Type("any", [null]), "data"],
 	[new Type("operator"), "predicate"],
 ], (data, predicate) => {
-	if (!(data instanceof List)) throw new TypeError("Cannot map non-list");
 	const { operands } = predicate;
 	if (operands.length > 1) throw new TypeError("Map predicate must have zero or one operands");
 	if (operands.length) return new List(data.elements.map(el => predicate.operate(el)));
@@ -811,12 +761,9 @@ currentScope["rangeTo"] = new Operator([
 ], length => new List(new Array(length).fill(0).map((_, i) => i)));
 
 currentScope["zip"] = new Operator([
-	[new Type(null), "sides"]
+	[new Type("any", [null, null]), "sides"]
 ], sides => {
-	const { dimensions } = typeOf(sides);
-	if (dimensions < 2) throw new TypeError("Zip sides don't have enough dimensions");
-	
-	let result = [];
+	const result = [];
 	for (let i = 0; i < sides.elements[0].length; i++)
 		result.push(new List(sides.elements.map(side => side.at(i))));
 	
@@ -828,23 +775,20 @@ currentScope["sort"] = new Operator([
 ], list => new List([...list.elements].sort((a, b) => a - b)));
 
 currentScope["keySort"] = new Operator([
-	[new Type(null), "list"],
+	[new Type("any", [null]), "list"],
 	[new Type("operator"), "key"]
-], (list, key) => {
-	if (list instanceof List)
-		return new List(
-			[...list.elements]
-				.sort((a, b) => key.operate(a) - key.operate(b))
-		);
-	throw new TypeError("Cannot sort non-list");
-});
+], (list, key) => new List(
+	[...list.elements]
+		.sort((a, b) => key.operate(a) - key.operate(b))
+));
 
 currentScope["flat"] = new Operator([
-	[new Type(null), "list"],
+	[new Type("any", null), "list"],
 	[new Type("real"), "depth"]
 ], (data, depth) => {
-	if (data instanceof List) return new List([...data.elements.map(element => element.elements)].flat(depth));
-	throw new TypeError("Cannot flatten non-list");
+	return new List([
+		...data.elements.map(element => element.elements)
+	].flat(depth));
 });
 
 currentScope["isFinite"] = new Operator([
@@ -852,21 +796,21 @@ currentScope["isFinite"] = new Operator([
 ], number => +isFinite(number));
 
 currentScope["len"] = new Operator([
-	[new Type(null), "list"]	
+	[new Type("any", [null]), "list"]	
 ], list => {
 	if (list instanceof List) return list.elements.length;
 	throw new TypeError("Cannot find length of non-list");
 });
 
 currentScope["call"] = new Operator([
-	[new Type(null), "args"],
+	[new Type("any", [null]), "args"],
 	[new Type("operator"), "op"]
 ], (args, op) => {
 	return op.operate(...args.elements);
 });
 
 currentScope["string"] = new Operator([
-	[new Type(null), "value"]
+	[new Type("any"), "value"]
 ], value => {
 	const charCodes = value
 		.toString()
@@ -876,7 +820,7 @@ currentScope["string"] = new Operator([
 });
 
 currentScope["buildString"] = new Operator([
-	[new Type(null), "value"],
+	[new Type("any", [null]), "value"],
 	[new Type("operator"), "str"]
 ], (value, str) => {
 	return new List(
@@ -890,8 +834,8 @@ currentScope["buildString"] = new Operator([
 });
 
 currentScope["==="] = new Operator([
-	[new Type(null), "a"],
-	[new Type(null), "b"]
+	[new Type("any"), "a"],
+	[new Type("any"), "b"]
 ], (a, b) => {
 	const recurseEqual = (list1, list2) => {
 		return +list1.elements.every((v, i) => {
@@ -912,7 +856,7 @@ currentScope["==="] = new Operator([
 });
 
 currentScope["effect"] = new Operator([
-	[new Type(null), "value"],
+	[new Type("any"), "value"],
 	[new Type("operator"), "sideEffect"]
 ], (value, sideEffect) => {
 	sideEffect.operate(value);
