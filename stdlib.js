@@ -8,12 +8,8 @@ evalStat(`
 reduce = [
 	any() data, any base, operator combine = data
 		|> len
-		|> is length
-		|> ? [= length
-			|> > 1
-			|> ? [= data(1:)
-				|> reduce combine(base, data(0)) combine
-			] [= combine(base, data(0))]
+		|> ? [= data(1:)
+			|> reduce combine(base, data(0)) combine
 		] [= base]
 ];
 zip = [
