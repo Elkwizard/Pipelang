@@ -3,15 +3,71 @@
 evalStat(`
 ! = [
 	real condition = condition
-		|> == 0
+		|> == false
+];
+reduce = [
+	any() data, any base, operator combine = data
+		|> len
+		|> is length
+		|> ? [= length
+			|> > 1
+			|> ? [= data(1:)
+				|> reduce combine(base, data(0)) combine
+			] [= combine(base, data(0))]
+		] [= base]
+];
+zip = [
+	any()() grid = grid
+		|> len
+		|> is rows
+		|> to grid(0)
+		|> len
+		|> is columns
+		|> rangeTo
+		|> [
+			real cIndex = rows
+				|> rangeTo
+				|> [
+					real rIndex = grid(rIndex)(cIndex)
+				]
+		]
+];
+flat = [
+	any() arr, real depth = depth
+		|> > 0
+		|> ? [= arr
+			|> reduce { } concat
+			|> flat -(depth, 1)
+		] [= arr]
+];
+fill = [
+	any() list, operator generate = list
+		|> len
+		|> rangeTo
+		|> [real index = generate()]
+];
+map = [
+	any() list, operator map = list
+		|> len
+		|> rangeTo
+		|> [
+			real index = index
+				|> nthOf list
+				|> map
+		]
+];
+effect = [
+	any value, operator sideEffect = value
+		|> sideEffect
+		|> to value
 ];
 all = [
 	real() conditions = conditions
-		|> reduce 1 &&
+		|> reduce true &&
 ];
 any = [
 	real() conditions = conditions
-		|> reduce 0 ||
+		|> reduce false ||
 ];
 reverse = [
 	any() list = list
@@ -40,17 +96,17 @@ concat = [
 		]
 ];
 padStart = [
-	any() list, size, fill = size
+	any() list, size, fillEl = size
 		|> - len(list)
 		|> rangeTo
-		|> map [= fill]
+		|> fill [= fillEl]
 		|> concat list
 ];
 padEnd = [
-	any() list, size, fill = size
+	any() list, size, fillEl = size
 		|> - len(list)
 		|> rangeTo
-		|> map [= fill]
+		|> fill [= fillEl]
 		|> [padding = concat list padding]
 ];
 roundTo = [
@@ -155,7 +211,7 @@ axis = [
 	real() vector, real n = vector(n)
 ];
 nthOf = [
-	real n, list = list(n)
+	real n, any() list = list(n)
 ];
 head = [
 	any() list, real count = list(:count)
@@ -861,7 +917,7 @@ matrixPow = [
 	real()() m, real p = p
 		|> - 1
 		|> rangeTo
-		|> map [= m]
+		|> fill [= m]
 		|> reduce m mul
 ];
 transform = [
@@ -1566,6 +1622,13 @@ capitalize = [
 		|> toUpperCase
 		|> concat str(1:)
 ];
+buildString = [
+	any() data, operator str = data
+		|> reduce "" [
+			real() progress, any element = progress
+				|> concat str(element)
+		]
+];
 
 // hash table
 Entry = [
@@ -1823,8 +1886,8 @@ currentScope["regression"] = new Operator([
 
 if (false) exec(`
 POINTS = 200;
-xlist = range(POINTS) |> map random |> * 3 |> - 0.5;
-ylist = range(POINTS) |> map random |> * 0.3 |> - 0.5 |> + pow(-(xlist, 0.5), 2);
+xlist = range(POINTS) |> fill random |> * 3 |> - 0.5;
+ylist = range(POINTS) |> fill random |> * 0.3 |> - 0.5 |> + pow(-(xlist, 0.5), 2);
 points = zip { xlist, ylist };
 model = regression(points, [
 	real x = x
@@ -1851,7 +1914,7 @@ residualPlot points model;
 // 	HISTOGRAM_BUCKETS = 100;
 // 	BUCKET_WIDTH = 30;
 // 	data = rangeTo 400
-// 		|> map random;
+// 		|> fill random;
 // 		// |> map [real z = z |> - 0.5 |> * 6 |> invNorm 0 1];
 // 	bucketSize = data
 // 		|> range

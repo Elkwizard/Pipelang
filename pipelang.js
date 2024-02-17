@@ -731,44 +731,16 @@ currentScope["void"] = new Operator([
 	[new Type("any"), "terminal"]
 ], value => void value);
 
-currentScope["reduce"] = new Operator([
-	[new Type("any", [null]), "data"],
-	[new Type("any"), "base"],
-	[new Type("operator"), "predicate"],
-], (data, base, predicate) => data.elements.reduce((acc, el) => {
-	return predicate.operate(acc, el);
-}, base));
-
 currentScope["filter"] = new Operator([
 	[new Type("any", [null]), "data"],
 	[new Type("operator"), "predicate"],
 ], (data, predicate) => new List(data.elements.filter(el => {
-		return !!predicate.operate(el);
+	return !!predicate.operate(el);
 })));
-
-currentScope["map"] = new Operator([
-	[new Type("any", [null]), "data"],
-	[new Type("operator"), "predicate"],
-], (data, predicate) => {
-	const { operands } = predicate;
-	if (operands.length > 1) throw new TypeError("Map predicate must have zero or one operands");
-	if (operands.length) return new List(data.elements.map(el => predicate.operate(el)));
-	return new List(data.elements.map(() => predicate.operate()));
-});
 
 currentScope["rangeTo"] = new Operator([
 	[new Type("real"), "length"]
 ], length => new List(new Array(length).fill(0).map((_, i) => i)));
-
-currentScope["zip"] = new Operator([
-	[new Type("any", [null, null]), "sides"]
-], sides => {
-	const result = [];
-	for (let i = 0; i < sides.elements[0].length; i++)
-		result.push(new List(sides.elements.map(side => side.at(i))));
-	
-	return new List(result);
-});
 
 currentScope["sort"] = new Operator([
 	[new Type("real", [null]), "list"]
@@ -781,15 +753,6 @@ currentScope["keySort"] = new Operator([
 	[...list.elements]
 		.sort((a, b) => key.operate(a) - key.operate(b))
 ));
-
-currentScope["flat"] = new Operator([
-	[new Type("any", null), "list"],
-	[new Type("real"), "depth"]
-], (data, depth) => {
-	return new List([
-		...data.elements.map(element => element.elements)
-	].flat(depth));
-});
 
 currentScope["isFinite"] = new Operator([
 	[new Type("real"), "number"]
@@ -819,20 +782,6 @@ currentScope["string"] = new Operator([
 	return new List(charCodes);
 });
 
-currentScope["buildString"] = new Operator([
-	[new Type("any", [null]), "value"],
-	[new Type("operator"), "str"]
-], (value, str) => {
-	return new List(
-		value.elements.map(v => {
-			return String.fromCharCode(...str.operate(v).elements);
-		})
-		.join("")
-		.split("")
-		.map(char => char.charCodeAt(0))
-	);
-});
-
 currentScope["==="] = new Operator([
 	[new Type("any"), "a"],
 	[new Type("any"), "b"]
@@ -855,14 +804,6 @@ currentScope["==="] = new Operator([
 	} else return +(a === b);
 });
 
-currentScope["effect"] = new Operator([
-	[new Type("any"), "value"],
-	[new Type("operator"), "sideEffect"]
-], (value, sideEffect) => {
-	sideEffect.operate(value);
-	return value;
-});
-
 // APIs
 currentScope["random"] = new Operator([], () => Math.random());
 
@@ -875,3 +816,8 @@ currentScope["time"] = new Operator([
 	fn.operate();
 	return performance.now() - start;
 });
+
+currentScope["timeout"] = new Operator([
+	[new Type("operator"), "action"],
+	[new Type("real"), "delay"]
+], (action, delay) => void setTimeout(() => action.operate(), delay));
