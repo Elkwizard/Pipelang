@@ -1,0 +1,107 @@
+printLockCombos = [
+	real() soFar, real numbers, real max = len(soFar)
+		|> == numbers
+		|> ? [= printString soFar |> to 0] [= rangeTo max
+			|> + '0'
+			|> [real char = printLockCombos concat(soFar, { char }) numbers max]
+			|> to 0
+		]
+];
+
+lockCombos = [
+	real numbers, real max = ? numbers [= rangeTo max
+		|> [
+			real suffix = - numbers 1
+				|> lockCombos max
+				|> [real() combination = concat combination { suffix }]
+		]
+		|> reduce {} concat
+	] [= {{}}]
+];
+
+pascalRow = [
+	real index = index
+		|> > 0
+		|> ? [= index
+			|> - 1
+			|> is previous
+			|> pascalRow
+			|> is previousRow
+			|> to previous
+			|> rangeTo
+			|> [
+				real inx = previousRow(inx)
+					|> + previousRow(+(inx, 1))
+			]
+			|> concat { 1 }
+			|> [real() row = concat { 1 } row]
+		] [= { 1 }]
+];
+
+/* print pascal */
+PASCAL_ROWS = 10;
+rangeTo PASCAL_ROWS
+	|> [
+		real index = pascalRow index
+			|> padEnd PASCAL_ROWS 0
+	]
+	|> printMatrix;
+
+hash = [
+	any key = key
+		|> primitive
+		|> ? [= key
+			|> * 394872.12398
+			|> mod 198.53985612
+			|> * 918273186.318263
+			|> mod 9873.13229874
+			|> * 2913782
+			|> abs
+			|> round
+		] [= key
+			|> len
+			|> rangeTo
+			|> [real index = hash(key(index))]
+			|> sum
+			|> hash
+		]
+];
+
+makeHashTable = [
+	operator()(2) pairs = pairs
+		|> len
+		|> * 1.25
+		|> ceil
+		|> is tableSize
+		|> to pairs
+		|> [
+			operator(2) pair = pair(0)()
+				|> hash
+				|> mod tableSize
+				|> [
+					real index = { [= index] }
+						|> concat pair
+				]
+		]
+		|> is indexedPairs
+		|> to tableSize
+		|> rangeTo
+		|> [
+			real index = indexedPairs
+				|> filter [operator(3) pair = pair(0) |> == index]
+				|> [operator(3) pair = pair(1:)]
+				|> [operator()(2) pairs = [= pairs]]
+		]
+];
+
+hashTableGet = [
+	operator() table, any key = key
+		|> hash
+		|> mod len(table)
+		|> nthOf table
+		|> call {}
+		|> filter [operator(2) pair = pair(0)() |> === key]
+		|> is matches
+		|> len
+		|> ? [= matches(0)] void
+];

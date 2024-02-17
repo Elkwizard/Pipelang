@@ -1,0 +1,128 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	color: white;
+	font-size: 20px;
+	font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+	border: none;
+	background: none;
+	outline: none;
+	line-height: 1.1;
+}
+
+:root {
+    --dark: #112;
+    --light: white;
+}
+
+:root {
+	--primary: var(--light);
+	--secondary: var(--dark);
+}
+
+:root {
+	--primary: var(--dark);
+	--secondary: var(--light);
+}
+
+
+* {	
+	/* color: transparent !important; */
+
+	/* text-shadow: 0px 0px 4px currentColor, 1px 1px 0px black; */
+	/* text-shadow: 0px 0px 4px currentColor;  */
+	
+	/* filter: saturate(200%) blur(.02em); */
+	
+	/*text-shadow: 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor;*/
+	
+	/* color: transparent !important; */
+	
+}
+
+#themeChoosers {
+	display: none !important;
+}
+
+#themeChoosers {
+	position: fixed;
+	right: 0;
+	top: 0;
+	display: flex;
+	flex-direction: row;
+}
+
+.theme-chooser {
+	margin: 1em;
+}
+
+.theme-chooser h1 {
+	text-decoration: underline;
+}
+
+.theme-chooser li {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+
+.theme-chooser h2 {
+	font-weight: normal;
+	padding-right: 0.3em;
+}
+
+body {
+	background: var(--primary);
+	overflow-y: auto;
+	width: 100vw;
+	overflow-x: hidden;
+	/* background: #001122; */
+}
+/* 
+.log {
+	white-space: normal !important;
+} */
+
+.log, #command, #commandHighlight {
+	font-variant-ligatures: normal;
+	tab-size: 3ch;
+	white-space: pre;
+	width: 100vw;
+	overflow: auto;
+	padding: 0.5em;
+	border-bottom: 1px gray solid;
+}
+
+#commandContainer {
+	display: block;
+	width: 100%;
+	height: 3em;
+	position: relative;
+}
+
+#command, #commandHighlight {
+	position: absolute;
+}
+
+#command {
+	z-index: 0;
+	color: transparent;
+	caret-color: var(--secondary);
+}
+
+#command::selection {
+	color: transparent;
+	background: rgba(100, 150, 255, 0.8);
+}
+
+#commandHighlight {
+	z-index: 1;
+	pointer-events: none;
+	border: none;
+}
+
+.log::before {
+	content: attr(data-prefix);
+	color: gray;
+}

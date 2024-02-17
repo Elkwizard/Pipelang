@@ -1,0 +1,57 @@
+multOf = [
+	real f = [
+		real n = n
+			|> % f
+			|> == 0
+	]
+];
+fb = [
+	real count = count
+		|> rangeTo
+		|> + 1
+		|> [
+			real n = n
+				|> switch {
+					condition([
+						real n = n
+							|> % { 3, 5 }
+							|> == 0
+							|> all
+					], [= "fizz buzz"])
+					condition(multOf(3), [= "fizz"])
+					condition(multOf(5), [= "buzz"])
+					default([= string(n)])
+				}
+				|> effect printString
+				|> to 0
+		]
+		|> void
+];
+
+// improved
+fb = [
+	real count = count
+		|> rangeTo
+		|> + 1
+		|> [
+			real n = switch n {
+					condition(
+						[n = !(%(n, { 3, 5 })) |> all],
+						[= "fizz buzz"]
+					)
+					condition(
+						[n = !(%(n, 3))],
+						[= "fizz"]
+					)
+					condition(
+						[n = !(%(n, 5))],
+						[= "buzz"]
+					)
+					default([= string(n)])
+				}
+				|> capitalize
+				|> effect printString
+				|> to 0
+		]
+		|> void
+];
