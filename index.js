@@ -227,15 +227,3 @@ currentScope["typeof"] = new Operator([
 ], value => logHTML(highlight(typeOf(value), "output")));
 
 currentScope["clear"] = new Operator([], () => clear());
-
-currentScope["random"] = new Operator([], () => Math.random());
-
-currentScope["currentTime"] = new Operator([], () => performance.now());
-
-currentScope["time"] = new Operator([
-	[new Type("operator"), "operation"]
-], fn => {
-	const start = performance.now();
-	fn.operate();
-	return performance.now() - start;
-});

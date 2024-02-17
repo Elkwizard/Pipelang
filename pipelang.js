@@ -918,3 +918,16 @@ currentScope["effect"] = new Operator([
 	sideEffect.operate(value);
 	return value;
 });
+
+// APIs
+currentScope["random"] = new Operator([], () => Math.random());
+
+currentScope["currentTime"] = new Operator([], () => performance.now());
+
+currentScope["time"] = new Operator([
+	[new Type("operator"), "operation"]
+], fn => {
+	const start = performance.now();
+	fn.operate();
+	return performance.now() - start;
+});
