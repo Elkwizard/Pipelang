@@ -33,13 +33,13 @@ const {
 const { highlight } = run("./highlightPL.js", ["highlight"]);
 run("./stdlib.js");
 
-Array.prototype.join = function(sep) {
+Array.prototype.join = function (sep) {
 	let result = "";
 	for (let i = 0; i < this.length; i++) {
 		result += this[i] + ((i === this.length - 1) ? "" : sep);
 	}
 	return result;
-}
+};
 
 const escape = x => `\x1b[${x}m`;
 const color = (name, text) => {
