@@ -36,11 +36,6 @@ function logElement(element) {
 	container.appendChild(log);
 }
 
-function clear() {
-	document.getElementById("logs").innerHTML = "";
-	return "workspace cleared";
-}
-
 const CODE_COLORS = {
 	number: "#8fdca1",
 	function: "#4665d2",
@@ -226,4 +221,7 @@ currentScope["typeof"] = new Operator([
 	[new Type(null), "value"]
 ], value => logHTML(highlight(typeOf(value), "output")));
 
-currentScope["clear"] = new Operator([], () => clear());
+currentScope["clear"] = new Operator([], () => {
+	document.getElementById("logs").innerHTML = "";
+	log("workspace cleared");
+});

@@ -62,11 +62,6 @@ function logHTML(message, prefix = "") {
 	console.log(prefix + message);
 }
 
-function clear() {
-	console.clear();
-	return "workspace cleared";
-}
-
 const CODE_COLORS = {
 	number: "light green",
 	function: "cyan",
@@ -145,6 +140,9 @@ currentScope["typeof"] = new Operator([
 	[new Type(null), "value"]
 ], value => logHTML(highlight(typeOf(value), "output")));
 
-currentScope["clear"] = new Operator([], () => clear());
+currentScope["clear"] = new Operator([], () => {
+	console.clear();
+	log("workspace cleared");
+});
 
 module.exports = { exec, currentScope, Operator, Type, List };
