@@ -69,7 +69,7 @@ function clear() {
 
 const CODE_COLORS = {
 	number: "light green",
-	function: "light blue",
+	function: "cyan",
 	symbol: "white",
 	type: "magenta",
 	comment: "dark blue",
@@ -129,7 +129,7 @@ currentScope["printMatrix"] = new Operator([
 			columnWidths[j] = Math.max(columnWidths[j], strings[i][j].length);
 		}
 	}
-	const sp = "&nbsp;";
+	const sp = " ";
 	const pad = (string, strLen, length) => {
 		const empty = length - strLen;
 		const left = Math.ceil(empty / 2);
@@ -138,7 +138,7 @@ currentScope["printMatrix"] = new Operator([
 	};
 	const spacing = 1;
 	const totalWidth = columnWidths.reduce((a, b) => a + b, 0) + (columnWidths.length + 1) * spacing;
-	logHTML(`┌${sp.repeat(totalWidth)}┐<br>` + strings.map(row => `│${sp.repeat(spacing)}${row.map((v, i) => pad(highlight(v, "output"), v.length, columnWidths[i])).join(sp.repeat(spacing))}${sp.repeat(spacing)}│`).join("<br>") + `<br>└${sp.repeat(totalWidth)}┘`);
+	logHTML(`┌${sp.repeat(totalWidth)}┐\n` + strings.map(row => `│${sp.repeat(spacing)}${row.map((v, i) => pad(highlight(v, "output"), v.length, columnWidths[i])).join(sp.repeat(spacing))}${sp.repeat(spacing)}│`).join("\n") + `\n└${sp.repeat(totalWidth)}┘`);
 });
 
 currentScope["typeof"] = new Operator([
