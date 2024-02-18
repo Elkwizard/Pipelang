@@ -562,7 +562,7 @@ function evalExpression(s, closures = []) {
 
 	if (acc instanceof Operator) { // first step is a function call
 		const rhs = [];
-		while (rhs.length < acc.operands.length && s.length && !s.has("|>"))
+		while (s.length && !s.has("|>"))
 			rhs.push(evalValue(s, closures));
 		if (rhs.length) acc = acc.operate(...rhs);
 	} else if (s.length && !s.has("|>"))
