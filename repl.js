@@ -8,9 +8,11 @@ function prompt() {
 
 process.stdin.on("data", data => {
 	data = data.toString("utf-8").replace(/[\r\n]/g, " ");
-	process.stdout.write("\x1b[1A");
-	prompt();
-	exec(data);
+	if (data.trim().length) {
+		process.stdout.write("\x1b[1A");
+		prompt();
+		exec(data);
+	}
 	prompt();
 });
 
