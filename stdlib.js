@@ -5,6 +5,18 @@ evalStat(`
 	real condition = condition
 		|> == false
 ];
+++ = [
+	real number = number
+		|> + 1
+];
+-- = [
+	real number = number
+		|> - 1
+];
+- = - & [
+	real number = 0
+		|> - number
+];
 reduce = [
 	any() data, any base, operator combine = data
 		|> len
@@ -26,6 +38,19 @@ zip = [
 				|> [
 					real rIndex = grid(rIndex)(cIndex)
 				]
+		]
+];
+swap = [
+	any() list, real i, real j = list
+		|> len
+		|> rangeTo
+		|> [
+			real index = index
+				|> == { i, j }
+				|> * { 2, 1 }
+				|> sum
+				|> nthOf { index, i, j, index }
+				|> nthOf list
 		]
 ];
 flat = [
@@ -92,14 +117,14 @@ concat = [
 		]
 ];
 padStart = [
-	any() list, size, fillEl = size
+	any() list, real size, fillEl = size
 		|> - len(list)
 		|> rangeTo
 		|> fill [= fillEl]
 		|> concat list
 ];
 padEnd = [
-	any() list, size, fillEl = size
+	any() list, real size, fillEl = size
 		|> - len(list)
 		|> rangeTo
 		|> fill [= fillEl]
@@ -152,15 +177,14 @@ ratio = [
 	real(2) pair = pair(0)
 		|> / pair(1)
 ];
-whereIn = [
-	element, any() list = zip { list, rangeTo(len(list)) }
-		|> filter [
-			pair = pair(0)
-				|> === element
-		]
-		|> is result
+findIn = [
+	any value, any() list = list
 		|> len
-		|> ? [= result(0)(1)] [= -1]
+		|> rangeTo
+		|> filter [real index = === list(index) value]
+		|> is values
+		|> len
+		|> ? [= values(0)] [= -1]
 ];
 ln = log;
 log = log10;
@@ -205,6 +229,15 @@ randInt = [
 ];
 axis = [
 	real() vector, real n = vector(n)
+];
+whereIn = [
+	any value, any() list = list
+		|> len
+		|> rangeTo
+		|> filter [real index = == list(index) value]
+		|> is values
+		|> len
+		|> ? [= values(0)] [= -1]
 ];
 nthOf = [
 	real n, any() list = list(n)
@@ -854,6 +887,12 @@ mag = [
 		|> sqrt
 ];
 
+distance = [
+	real() a, real() b = a
+		|> - b
+		|> mag
+];
+
 normalize = [
 	real() v = v
 		|> / mag(v)
@@ -873,6 +912,11 @@ angleBetween = [
 ];
 
 // matrices
+isMatrix =	[real()() mat = false] &
+			[rest = false];
+isVector =	[real()() mat = false] &
+			[real() vec = true] &
+			[rest = false];
 identityMatrix = [
 	real dim = dim
 		|> rangeTo
@@ -1034,12 +1078,60 @@ outerProduct = [
 				|> * v
 		]
 ];
+swapRows = [
+	real()() mat, real i, real j = mat
+		|> swap i j
+];
+addRowMultiple = [
+	real()() mat, real dst, real src, real factor = mat
+		|> len
+		|> rangeTo
+		|> [
+			real index = index
+				|> == dst
+				|> ? [= mat(index)
+					|> + *(mat(src), factor)
+				] [= mat(index)]
+		]
+];
+multiplyRow = [
+	real()() mat, real i, real factor = mat
+		|> addRowMultiple i i -(factor, 1)
+];
+_echelonColumn = [
+	real()() mat, real c, real r = c
+		|> nthOf transpose(mat(r:))
+		|> argMax
+		|> is targetIndex
+		|> nthOf mat
+		|> is target
+		|> to mat
+		|> len
+		|> rangeTo
+		|> [
+			real index = index
+				|> == targetIndex
+				|> ? [= mat(index)] [= mat(index)
+					|> is row
+					|> to row(c)
+					|> / target(c)
+					|> * target
+					|> * -1
+					|> + row
+				]
+		]
+		|> swapRows r targetIndex
+];
+echelon = [
+	real()() mat = mat
+		|> _echelonColumn 0 0
+];
+reducedEchelon = [
+	real()() mat = mat
+		|> echelon
+];
 PRINT_MATRIX_DIGITS = 2;
-// printMatrix = [
-// 	real()() matrix = matrix
-// 		|> [real() row = row |> roundTo PRINT_MATRIX_DIGITS |> print |> 0]
-// 		|> void
-// ];
+
 X2MatrixDf = [
 	real()() samples = samples
 		|> apply { rows, columns } 
@@ -1125,6 +1217,16 @@ minAll = [
 maxAll = [
 	real() list = list
 		|> reduce *(Infinity, -1) max
+];
+argMin = [
+	real() list = list
+		|> minAll
+		|> findIn list
+];
+argMax = [
+	real() list = list
+		|> maxAll
+		|> findIn list
 ];
 range = [
 	real() list = list
@@ -1448,7 +1550,7 @@ gamma = [
 		|> to [
 			real x = x
 				|> pow zm1
-				|> * exp(-(0, x))
+				|> * exp(-(x))
 		]
 		|> integral 0 GAMMA_MAX_X GAMMA_DX
 ];
@@ -1459,7 +1561,7 @@ upperGamma = [
 		|> to [
 			real t = t
 				|> pow sm1
-				|> * exp(-(0, t))
+				|> * exp(-(t))
 		]
 		|> integral min(x, GAMMA_MAX_X) GAMMA_MAX_X GAMMA_DX
 ];
@@ -1470,7 +1572,7 @@ lowerGamma = [
 		|> to [
 			real t = t
 				|> pow sm1
-				|> * exp(-(0, t))
+				|> * exp(-(t))
 		]
 		|> integral 0 min(x, GAMMA_MAX_X) GAMMA_DX
 ];
@@ -1557,17 +1659,11 @@ switch = [
 			operator()(2) case = case(0)(1)()
 		]
 ];
-_fieldName = [
-	real() name = [=name]
-];
-_fieldValue = [
-	value = [struct = value]
-];
 field = [
-	real() name, any value = { _fieldName(name), _fieldValue(value) }
+	real() name, any value = { [name], [struct = value] }
 ];
 method = [
-	real() name, operator fn = { _fieldName(name), fn }
+	real() name, operator fn = { [name], fn }
 ];
 read = [
 	operator()(2) struct, real() name = struct
@@ -1577,25 +1673,21 @@ read = [
 		]
 		|> is result
 		|> len
-		|> ? [= result(0)(1)(struct)] [=void(0)]
+		|> ? [= result(0)(1)(struct)] [= void(0)]
 ];
 
 Vec3 = [real(3) coords = {
-	field("x", coords(0))
-	field("y", coords(1))
-	field("z", coords(2))
-	method("getNormalized", [this = 
-		[= coords
-			|> sumSquared
-			|> sqrt
-			|> reciprocal
-			|> * coords
-			|> Vec3
-		]
-	])
-	method("getCoords", [this =
-		[= coords]
-	])
+	x: coords(0),
+	y: coords(1),
+	z: coords(2),
+	getNormalized: [= coords
+		|> sumSquared
+		|> sqrt
+		|> reciprocal
+		|> * coords
+		|> Vec3
+	],
+	getCoords: [coords]
 }];
 
 // strings
@@ -1628,7 +1720,7 @@ buildString = [
 
 // hash table
 Entry = [
-	any key, any value = { [= key], [= value] }
+	any key, any value = { [key], [value] }
 ];
 
 hash = [
@@ -1767,144 +1859,6 @@ currentScope["linReg"] = new Operator([
 });
 
 // y = 1.4 + 0.33*x_1 + 0.16*x_2 + e
-
-currentScope["regression"] = new Operator([
-	[new Type("real", [2, null]), "points"],
-	[new Type("operator"), "template"]
-], (points, template) => {
-	points = points.toArray();
-	const { operandNames, sourceCode } = template;
-	if (operandNames.length !== 1) throw new TypeError("Regression template must have 1 operand");
-	if (sourceCode === "...") throw new TypeError("Regression template cannot be built-in");
-	
-	const scope = pushScope(template.scopeType);
-
-	const xn = operandNames[0];
-	console.log(xn);
-	const stream = tokenize(sourceCode);
-	const tokens = stream.tokens;
-	const parameters = {};
-	for (let i = 0; i < tokens.length; i++) {
-		const tok = tokens[i];
-		if (tok === xn) continue;
-		if (typeOfToken(tok) !== "identifier") continue;
-		if (tok in currentScope) continue;
-		parameters[tok] = {
-			value: Math.random(),
-			index: i
-		};
-	}
-
-	const names = Object.keys(parameters);
-
-	function updateEstimator({ value, index }) {
-		tokens[index] = value + "";
-	}
-
-	function estimate(x) {
-		scope[xn] = x;
-		return evalExpression(stream.copy());
-	}
-
-	const dx = 0.0001;
-
-	function squareError(dataIndex) {
-		const p = points[dataIndex];
-		return (p[1] - estimate(p[0])) ** 2;
-	}
-
-	const LEARNING_RATE = 0.01;
-
-	function adjust(dataIndex, param) {
-		const p = parameters[param];
-		const x0 = p.value;
-		const err0 = squareError(dataIndex);
-		const x1 = x0 + dx;
-		p.value = x1;
-		updateEstimator(p);
-		const err1 = squareError(dataIndex);
-		const dE_dx = (err1 - err0) / dx;
-		p.value = x0 - dE_dx * LEARNING_RATE;
-		updateEstimator(p);
-	}
-
-	for (let i = 0; i < names.length; i++) updateEstimator(parameters[names[i]]);
-
-	const ITERATIONS = 200;
-	for (let i = 0; i < ITERATIONS; i++) {
-		for (let j = 0; j < points.length; j++) {
-			for (let k = 0; k < names.length; k++) {
-				adjust(j, names[k]);
-			}
-		}
-	}
-	
-	// compute r^2
-	let meanY = 0;
-	for (let i = 0; i < points.length; i++) meanY += points[i][1];
-	meanY /= points.length;
-
-	let totalError = 0;
-	let remainingError = 0;
-	for (let i = 0; i < points.length; i++) {
-		const error = squareError(i);
-		remainingError += error;
-		totalError += (points[i][1] - meanY) ** 2;
-	}
-
-	const rSq = 1 - remainingError / totalError;
-
-	popScope();
-
-	// create result
-	class StackFrame {}
-
-	const result = new Operator([
-		[new Type("real"), xn]
-	], x => {
-		const scope = pushScope(StackFrame);
-		scope[xn] = x;
-		const result = evalExpression(stream.copy());
-		popScope();
-		return result;
-	});
-
-
-	result.sourceCode = format(stream.toString()) + ` /* r²: ${round(rSq)} */`;
-	result.closure = template.closure;
-	result.scopeType = StackFrame;
-
-	StackFrame.closure = template.closure;
-	StackFrame.operator = result;
-
-	return result;
-});
-
-if (false) exec(`
-POINTS = 200;
-xlist = range(POINTS) |> fill random |> * 3 |> - 0.5;
-ylist = range(POINTS) |> fill random |> * 0.3 |> - 0.5 |> + pow(-(xlist, 0.5), 2);
-points = zip { xlist, ylist };
-model = regression(points, [
-	real x = x
-		|> - h
-		|> pow 2
-		|> * a
-		|> + k
-]);
-regressionPlot points model;
-residualPlot points model;
-model = regression(points, [
-	real x = x
-		|> - h
-		|> * a
-		|> sin
-		|> * b
-		|> + k
-]);
-regressionPlot points model;
-residualPlot points model;
-`);
 
 // exec(`
 // 	HISTOGRAM_BUCKETS = 100;

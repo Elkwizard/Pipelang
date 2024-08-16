@@ -2,19 +2,30 @@ Array.prototype.toString = function () {
 	return `[${this.join(", ")}]`;
 };
 
-Array.prototype.join = function(sep) {
-	let result = "";
-	for (let i = 0; i < this.length; i++) {
-		result += this[i] + ((i === this.length - 1) ? "" : sep);
-	}
-	return result;
-}
-
 function log(message, color = "white") {
 	const log = document.createElement("div");
 	log.className = "log";
 	log.innerText = message;
 	log.style.color = color;
+	log.innerHTML = log.innerHTML.replace(/\x1b\[(\d+)m/g, (_, num) => {
+		num = +num;
+		if (!num) return "</span>";
+
+		const offset = Math.floor(num / 10);
+		num -= offset * 10;
+
+		const key = offset === 3 ? "color" : "background-color";
+
+		const color = "#" + num
+			.toString(2)
+			.padStart(3, "0")
+			.replaceAll("1", "f")
+			.split("")
+			.reverse()
+			.join("");
+
+		return `<span style="${key}: ${color}">`;
+	});
 	const container = document.getElementById("logs");
 	container.appendChild(log);
 }
@@ -127,8 +138,8 @@ function exec(command) {
 		if (result !== undefined) currentScope["ans"] = result;
 	} catch (err) {
 		// throw err;
-		log(err + "\n" + scopes.map(scope => {
-			return "\t at " + scope.constructor.operator.localName;
+		log(err + "\n" + callStack.map(name => {
+			return "\t at " + name;
 		}).reverse().join("\n"), THROWN_ERROR);
 	}
 }

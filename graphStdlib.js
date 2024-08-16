@@ -674,7 +674,7 @@ raytrace = [
 			|> isFinite
 			|> ? [= shadow
 				|> ? [= true] [= minDist
-					|> whereIn distances
+					|> findIn distances
 					|> nthOf SCENE
 					|> is hitShape
 					|> to minDist
@@ -703,7 +703,7 @@ getPixel = [
 		|> ? [= BACKGROUND_COLOR] [= result]
 ];
 
-SCREEN_DIM = { 128, 128 } |> / 1 |> round;
+SCREEN_DIM = { 256, 256 } |> / 1 |> round;
 
 screenCoords = rangeTo SCREEN_DIM(1)
 	|> [

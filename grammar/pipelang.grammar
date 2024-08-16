@@ -1,0 +1,40 @@
+comment = /\/\/.*|\/\*([\w\W]*?)\*\//
+string = /"((\\.)*(.*?))*?"/
+char = /'\\?.'/
+symbol = /[{}()\[\];,:.#]|\|>|(=(?!=))/
+number = /\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g
+identifier = /\w+|\|+|[^\w\s(){}\[\]|'",:;.#]+/
+
+Reference = name:identifier
+NumberValue = value:number
+StringValue = value:string
+CharValue = value:char
+Value = NumberValue | StringValue | CharValue
+Field = key:identifier ":" value:Expression
+List = "{" (elements:Expression[","?] | elements:Field[","?]) "}"
+Dimension = "(" length:number? ")"
+Type = base:("any" | "real" | "operator" | "primitive") dimensions:Dimension*
+Parameter = type:Type? name:identifier
+Operator = "[" (parameters:Parameter[","] "=")? body:Body "]"
+BaseExpression = Operator | List | Reference | Value
+FromIndex = start:Expression ":"
+ToIndex = ":" end:Expression
+IndexRange = start:Expression ":" end:Expression
+Index = ToIndex | IndexRange | FromIndex
+Arguments = arguments:Expression[","?]
+Property = "." key:identifier
+Overload = "&" overload:Expression
+Expression = base:Expression ("(" step:(Index | Arguments) ")" | step:(Property | Overload)) | BaseExpression
+
+Call = operator:Expression arguments:Expression*
+Alias = "is" name:identifier
+Reset = "to" value:Expression
+Step = Alias | Reset | Call
+InitialCall = operator:Expression arguments:Expression+
+FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
+
+Assignment = target:identifier "=" value:FullExpression
+Statement = Assignment | FullExpression
+Body = statements:Statement{";"} ";"?
+
+root = Body

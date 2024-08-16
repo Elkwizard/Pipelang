@@ -19,27 +19,16 @@ const document = {
 	}
 };
 
+const { parse, AST } = run("./grammar/parse.js", ["parse", "AST"]);
+
 const {
-	scopes, currentScope, evalStat, Operator, Type, List,
-	NUMBER_REGEX, SINGLE_LINE_COMMENT_REGEX,
-	MULTILINE_COMMENT_REGEX
+	callStack, currentScope, evalStat, Operator, Type, List
 } = run(
 	"./pipelang.js",
-	[
-		"scopes", "currentScope", "evalStat", "Operator", "Type",
-		"NUMBER_REGEX", "SINGLE_LINE_COMMENT_REGEX", "MULTILINE_COMMENT_REGEX"
-	]
+	["callStack", "currentScope", "evalStat", "Operator", "Type", "List"]
 );
 const { highlight } = run("./highlightPL.js", ["highlight"]);
 run("./stdlib.js");
-
-Array.prototype.join = function (sep) {
-	let result = "";
-	for (let i = 0; i < this.length; i++) {
-		result += this[i] + ((i === this.length - 1) ? "" : sep);
-	}
-	return result;
-};
 
 const { color } = require("./formatting");
 
@@ -90,13 +79,13 @@ function exec(command) {
 		const JS = command[0] === "#";
 		if (JS) log(command, JS_EXECUTED_COMMAND);
 		else logHTML(highlight(command, "code"));
-		const result = JS ? window.eval(command.slice(1)) : evalStat(command);
+		const result = JS ? global.eval(command.slice(1)) : evalStat(command);
 		logHTML(highlight(result ?? "<void>", "output"), "» ");
 		if (result !== undefined) currentScope["ans"] = result;
 	} catch (err) {
 		// throw err;
-		log(err + "\n" + scopes.map(scope => {
-			return "\t at " + scope.constructor.operator.localName;
+		log(err + "\n" + callStack.map(name => {
+			return "\t at " + name;
 		}).reverse().join("\n"), THROWN_ERROR);
 	}
 }

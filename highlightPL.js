@@ -15,11 +15,11 @@ function highlight(source, paletteName) {
 	color(/(?<=([^<>!=]=\s*)|^)(\w+)\b(?!\s*(\|\>|=|$))/g, "function");
 	color(/\b[^\W](\w*)\s*(?=\(|=\s*\[)/g, "function");
 	color(/(?<=\|>\s*)[^\W](\w*)\b/g, "function");
-	color(NUMBER_REGEX, "number");
-	color(/\b(real|operator|any|false|true|NaN|Infinity|void|filter|reduce|typeof|is|to|primitive|string)\b/g, "type");
+	color(/\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g, "number");
+	color(/\b(real|operator|any|false|true|NaN|Infinity|void|filter|reduce|typeof|is|to|primitive|string|this)\b/g, "type");
 	color(/(['"])((.*?)(\\\\)?(((.*?)[^\\])*?))*?(\1|$)/g, "string");
-	color(SINGLE_LINE_COMMENT_REGEX, "comment");
-	color(MULTILINE_COMMENT_REGEX, "comment");
+	color(/\/\/.*/g, "comment");
+	color(/\/\*.\*\//gs, "comment");
 
 	const span = document.createElement("span");
 	function htmlEscape(text) {

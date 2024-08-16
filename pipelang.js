@@ -1,11 +1,3 @@
-// syntax
-const OPERATOR_OPEN = "[";
-const OPERATOR_CLOSE = "]";
-const LIST_OPEN = "{";
-const LIST_CLOSE = "}";
-const INDEX_OPEN = "(";
-const INDEX_CLOSE = ")";
-
 class Type {
 	constructor(baseType, dimensions = []) {
 		if (baseType === null) this.ignore = true;
@@ -92,7 +84,12 @@ class Type {
 		return true;
 	}
 	toString() {
-		return this.ignore ? "ignore" : `${this.baseType}${this.dimensions.map(dim => INDEX_OPEN + (dim ?? "") + INDEX_CLOSE).reverse().join("")}`;
+		return this.ignore ? "ignore" : `${this.baseType}${
+			this.dimensions
+				.map(dim => `(${dim ?? ""})`)
+				.reverse()
+				.join("")
+		}`;
 	}
 }
 
@@ -116,7 +113,7 @@ class List {
 	invalidIndex(index) {
 		return index < 0 || index >= this.length;
 	}
-	slice(start, end = this.length) {
+	slice(start = 0, end = this.length) {
 		if (start < 0) start += this.length;
 		if (end < 0) end += this.length;
 		if (start === end) {
@@ -139,9 +136,9 @@ class List {
 	toString() {
 		if (this.elements.length) {
 			// if (this.elements[0] instanceof List) return `${LIST_OPEN}\n${this.elements.map(el => "\t" + el).join(",\n")}\n${LIST_CLOSE}`;
-			return `${LIST_OPEN} ${this.elements.join(", ")} ${LIST_CLOSE}`;
+			return `{ ${this.elements.join(", ")} }`;
 		}
-		return `${LIST_OPEN} ${LIST_CLOSE}`;
+		return `{ }`;
 	}
 }
 
@@ -186,7 +183,43 @@ class Operator {
 		this.sourceCode = "...";
 		this.localName = "anonymous";
 	}
+	set localName(name) {
+		if (this.overload)
+			this.overload.localName = name;
+		this._localName = name;
+	}
+	get localName() {
+		return this._localName;
+	}
+	copy() {
+		const result = new Operator(this.operands, this.method);
+		result.sourceCode = this.sourceCode;
+		result.tailCall = this.tailCall;
+		if (result.overload) result.overload = result.overload.copy();
+		return result;
+	}
+	withOverload(overload) {
+		return this.copy().addOverload(overload);
+	}
+	addOverload(overload) {
+		if (this.overload) this.overload = this.overload.withOverload(overload);
+		else this.overload = overload;
+		return this;
+	}
 	operate(...args) {
+		return tryOperate(this, args);
+	}
+	arrayOperate(args) {
+		if (this.overload) {
+			try {
+				return this.baseOperate(args, true);
+			} catch (err) { }
+			return this.overload.arrayOperate(args);
+		}
+
+		return this.baseOperate(args, true);
+	}
+	baseOperate(args, topLevel = false) {
 		const { operandTypes } = this;
 		const actualTypes = args.map(typeOf);
 
@@ -198,7 +231,12 @@ class Operator {
 			throw new OperandError(this.localName, actualTypes);
 
 		const exactTypes = actualTypes.every((type, i) => type.equals(operandTypes[i]));
-		if (exactTypes) return this.method(...args);
+		if (exactTypes) {
+			const result = this.method.apply(null, args);
+			if (!topLevel && this.tailCall)
+				return tryOperateStackless(result[0], result[1]);
+			return result;
+		}
 
 		const structs = actualTypes.map((type, i) => type.slice(operandTypes[i]));
 		const maxDims = Math.max(
@@ -212,9 +250,12 @@ class Operator {
 		const baseStruct = structs[baseIndex];
 		const base = args[baseIndex];
 
+		if (!base.length)
+			throw new TypeError("Cannot operate over an empty list");
+
 		const elements = [];
 		for (let i = 0; i < base.length; i++) {
-			const subValue = this.operate(...args.map((arg, argInx) => {
+			const subValue = this.baseOperate(args.map((arg, argInx) => {
 				return (
 					structs[argInx].length === baseStruct.length &&
 					!operandTypes[argInx].ignore
@@ -226,7 +267,8 @@ class Operator {
 		return new List(elements);
 	}
 	toString() {
-		const normalized = `${OPERATOR_OPEN}${this.operands.map(([type, name]) => type.ignore ? name : type + " " + name).join(", ")} = ${this.sourceCode}${OPERATOR_CLOSE}`
+		let normalized = `[${this.operands.map(([type, name]) => type.ignore ? name : type + " " + name).join(", ")} = ${this.sourceCode}]`
+		if (this.overload) normalized += " & " + this.overload;
 		return normalized;
 	}
 }
@@ -247,448 +289,245 @@ function typeOf(value) {
 	}
 }
 
-// token management
-function split(tokens, sep) {
-	const inx = tokens.indexOf(sep);
-	if (inx > -1) return [
-		...split(tokens.slice(0, inx), sep),
-		...split(tokens.slice(inx + 1), sep)
-	];
-	return [tokens];
-}
-
-class TokenStream {
-	constructor(tokens) {
-		this.tokens = [...tokens].reverse();
-	}
-	get length() {
-		return this.tokens.length;
-	}
-	get all() {
-		return [...this.tokens].reverse();
-	}
-	copy() {
-		return new TokenStream(this.all);
-	}
-	until(tok) {
-		const result = [];
-		while (this.length && !this.has(tok)) result.push(this.next());
-		return new TokenStream(result);
-	}
-	endOf(open, close) {
-		const result = [];
-		this.until(open);
-		if (!this.length) return result;
-		this.next();
-		let depth = 1;
-		while (this.length && depth) {
-			if (this.has(open)) depth++;
-			if (this.has(close)) depth--;
-			result.push(this.get());
-			this.next();
-		}
-		result.pop();
-		return new TokenStream(result);
-	}
-	hasAny(...toks) {
-		for (let i = 0; i < toks.length; i++) if (this.has(toks[i])) return true;
-	}
-	skip(amt) {
-		for (let i = 0; i < amt; i++) this.next();
-		return this;
-	}
-	get(inx = 0) {
-		return this.tokens[this.tokens.length - 1 - inx];
-	}
-	has(tok, inx) {
-		return this.get(inx) === tok;
-	}
-	type(type, inx) {
-		return typeOfToken(this.get(inx)) === type;
-	}
-	next() {
-		return this.tokens.pop();
-	}
-	toString() {
-		return this.all.join(" ");
-	}
-}
-
-const syntaxCharacters = new Set([
-	OPERATOR_OPEN, OPERATOR_CLOSE,
-	LIST_OPEN, LIST_CLOSE,
-	INDEX_OPEN, INDEX_CLOSE,
-	",", ":", ";", "|>"
-]);
-
-const NUMBER_REGEX = /\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g;
-
-function typeOfToken(tok) {
-	if (tok.trim() === "") return "whitespace";
-	const match = tok.match(NUMBER_REGEX);
-	if (match && match[0] === tok) return "number";
-	if (syntaxCharacters.has(tok)) return "syntax";
-	return "identifier";
-}
-
-function tokenize(string) {
-	const tws = new TokenStream(
-		string
-			.replace(/\s+/g, " ")
-			.split(/(\b| )/g)
-			.filter(tok => tok)
-			.map(tok => tok.trim())
-	);
-
-	const separatedTokens = [];
-	const syntaxRegex = new RegExp(`(${[...syntaxCharacters].map(synt => synt.split("").map(char => "\\" + char).join("")).join("|")})`, "g");
-	while (tws.length) {
-		const tok = tws.next();
-		if (tok.match(/^(\W*)$/g)) { // symbols
-			const matches = tok.match(syntaxRegex);
-			if (matches) {
-				separatedTokens.push(
-					...tok
-						.split(syntaxRegex)
-						.filter(tok => tok)
-				);
-			} else separatedTokens.push(tok);
-		} else separatedTokens.push(tok);
-	}
-
-	const st = new TokenStream(separatedTokens);
-	const tokens = [];
-	while (st.length) {
-		const tok = st.get();
-		const symbolStart = st.hasAny("-", "-.", ".");
-		const numberStart = st.type("number");
-		const expStart = tok.length > 1 && typeOfToken(tok.slice(0, -1)) === "number" && tok[tok.length - 1].toLowerCase() === "e"; // 1e
-		if (symbolStart || numberStart || expStart) {
-			// longest number is 6 tokens: [- DIGITS . DIGITSe SIGN DIGITS]
-			let longest = null;
-			const acc = [];
-			for (let i = 0; i < 6 && st.length; i++) {
-				if (typeOfToken(acc.join("")) === "number") longest = [...acc];
-				if (st.get(i)) acc.push(st.get(i));
-				else break;
-			}
-			if (typeOfToken(acc.join("")) === "number") longest = [...acc];
-
-			if (longest) {
-				st.skip(longest.length);
-				tokens.push(longest.join(""));
-				continue;
-			}
-		}
-
-		if (st.get()) tokens.push(st.get());
-		st.next();
-	}
-
-	return new TokenStream(tokens);
-}
-
 // scope & built-ins
-const variables = {
-	"true": 1,
-	"false": 0,
-	"NaN": NaN,
-	"Infinity": Infinity,
-};
+const variables = new Map();
 let scopes = [];
-function getFunctionScope() {
-	if (!scopes.length) return {};
-	const scope = scopes[scopes.length - 1];
-	const closure = scope.constructor.closure;
-	const result = {};
-	for (const key in closure) result[key] = closure[key];
-	for (const key in scope) result[key] = scope[key];
-	return result;
-}
+const callStack = [];
 const currentScope = new Proxy({}, {
-	get(obj, key) {
-		const scope = getFunctionScope();
-		let rv;
-		if (key in scope) rv = scope[key];
-		else if (key in variables) rv = variables[key];
-		if (rv !== undefined) {
-			if (rv instanceof Operator) rv.localName = key;
-			return rv;
-		}
+	get(_, key) {
+		for (let i = scopes.length - 1; i >= 0; i--)
+			if (scopes[i].has(key)) {
+				const value = scopes[i].get(key);
+				if (value !== undefined) {
+					if (value instanceof Operator)
+						value.localName = key;
+					return value;
+				}
+			}
 		throw new ReferenceError(`No variable exists with name '${key}'`);
 	},
-	has(obj, key) {
-		const scope = getFunctionScope();
-		if (key in variables || key in scope) return true;
-		return false;
+	has(_, key) {
+		return scopes.some(scope => scope.has(key));
 	},
-	set(obj, key, value) {
-		if (value === undefined) throw new TypeError(`Cannot assign void to a variable (assigning '${key}')`);
-		if (scopes.length) scopes[scopes.length - 1][key] = value;
-		else variables[key] = value;
+	set(_, key, value) {
+		if (value === undefined)
+			throw new TypeError(`Cannot assign void to a variable (assigning '${key}')`);
+
+		scopes.at(-1).set(key, value);
 	}
 });
-function pushScope(scopeType) {
-	const scope = new scopeType();
-	scopes.push(scope);
-	return scope;
-}
-function popScope() {
-	scopes.pop();
+
+function resetScopes() {
+	callStack.length = 0;
+	scopes = [variables];
 }
 
-// eval
-function evalValue(s, closures = []) {
-	let value;
-	if (s.has(LIST_OPEN)) { // list
-		const elements = [];
-		s.next(); // {
-		while (!s.has(LIST_CLOSE)) elements.push(evalValue(s, closures));
-		s.next(); // }
-		value = new List(elements);
-	} else if (s.has(OPERATOR_OPEN)) { // operator
-		const body = s.endOf(OPERATOR_OPEN, OPERATOR_CLOSE);
-		const sig = body.until("=");
-		body.next(); // =
-		if (!body.length) throw new SyntaxError("Operator body is missing");
+resetScopes();
 
-		const operands = [];
-		while (sig.length) {
-			const operand = sig.until(",");
-			sig.next(); // ,
-			if (operand.length === 1) operands.push([new Type(null), operand.next()]);
-			else {
-				const baseType = operand.next();
-				const dimensions = [];
-				while (operand.length > 1) {
-					if (operand.has(INDEX_CLOSE, 1)) {
-						operand.skip(2);
-						dimensions.push(null);
-						continue;
-					}
-					operand.next();
-					const dim = evalValue(operand, closures);
-					if (typeof dim === "number") {
-						operand.next();
-						dimensions.push(dim);
-					} else throw new TypeError(`Type '${typeOf(dim)}' cannot be used as a dimension size`);
-				}
-				operands.push([
-					new Type(baseType, dimensions.reverse()),
-					operand.next()
-				]);
-			}
+function tryOperate(operator, args) {
+	const { length } = callStack;
+	const result = tryOperateStackless(operator, args);
+	callStack.length = length;
+	return result;
+}
+
+function tryOperateStackless(operator, args) {
+	while (true) {
+		if (operator instanceof Operator) {
+			callStack.push(operator.localName);
+			operator = operator.arrayOperate(args);
+			if (!Array.isArray(operator)) return operator;
+			[operator, args] = operator;
+		} else if (operator instanceof List && args.length === 1) {
+			return operator.at(args[0]);
+		} else {
+			throw new TypeError(`Cannot use type '${typeOf(operator)}' as an operator`);
 		}
+	}
+}
 
-		class StackFrame { }
+function evalList(list) {
+	return (list ?? []).map(evalExpression);
+}
 
-		const closure = {};
-		for (let i = 0; i < closures.length; i++) {
-			const scope = closures[i];
-			for (const key in scope)
-				closure[key] = scope[key];
+function evalBody({ statements }) {
+	let result;
+
+	for (const stmt of statements)
+		result = evalExpression(stmt);
+
+	return result;
+}
+
+function evalExpression(expr) {
+	if (expr instanceof AST.FullExpression) {
+		const { base, step } = expr;
+		let init = evalExpression(base);
+		
+		if (step instanceof AST.Alias) {
+			currentScope[step.name] = init;
+		} else if (step instanceof AST.Reset) {
+			init = evalExpression(step.value);
+		} else {
+			const args = evalList(step.arguments);
+			if (init !== undefined) args.unshift(init);
+			init = tryOperate(evalExpression(step.operator), args);
 		}
+		
+		return init;
+	}
 
-		const operator = new Operator(operands, (...args) => {
-			const scope = pushScope(StackFrame);
-			for (let i = 0; i < operator.operandNames.length; i++) {
-				const name = operator.operandNames[i];
-				currentScope[name] = args[i];
-			}
-			const result = evalExpression(
-				body.copy(),
-				[...closures, scope]
-			);
-			popScope();
+	if (expr instanceof AST.InitialCall)
+		return tryOperate(evalExpression(expr.operator), evalList(expr.arguments));
+
+	if (expr instanceof AST.StringValue)
+		return new List(JSON.parse(expr.value).split("").map(ch => ch.charCodeAt()));
+
+	if (expr instanceof AST.NumberValue)
+		return +expr.value;
+
+	if (expr instanceof AST.CharValue)
+		return JSON.parse(`"${
+			expr.value
+				.slice(1, -1)
+				.replace(/\\'/, "'")
+				.replace(/"/, "\\\"")
+		}"`).charCodeAt();
+
+	if (expr instanceof AST.Reference)
+		return currentScope[expr.name];
+
+	if (expr instanceof AST.List)
+		return new List(evalList(expr.elements));
+
+	if (expr instanceof AST.Expression) {
+		const base = evalExpression(expr.base);
+		const { step } = expr;
+
+		if (step instanceof AST.Arguments)
+			return tryOperate(base, evalList(step.arguments));
+		
+		if (step instanceof AST.Overload)
+			return base.withOverload(evalExpression(step.overload));
+
+		if (!(base instanceof List))
+			throw new TypeError(`Cannot index into type '${typeOf(base)}'`);
+
+		let { start, end } = step;
+		if (start) start = evalExpression(start);
+		if (end) end = evalExpression(end);
+		return base.slice(start, end);
+	}
+
+	if (expr instanceof AST.Operator) {
+		const parameters = (expr.parameters ?? []).map(parameter => {
+			let type;
+			if ("type" in parameter) {
+				const base = parameter.type.base;
+				const dimensions = (parameter.type.dimensions ?? [])
+					.map(dim => "length" in dim ? +dim.length : null)
+					.reverse();
+				type = new Type(base, dimensions);
+			} else type = new Type(null);
+			return [type, parameter.name];
+		});
+
+		const closure = [...scopes];
+
+		const { tailCall } = expr;
+
+		const operator = new Operator(parameters, (...args) => {
+			const scope = new Map();
+			scope.set(Operator, operator);
+			for (let i = 0; i < args.length; i++)
+				scope.set(parameters[i][1], args[i]);
+			const oldScopes = scopes;
+			scopes = [...closure, scope];
+			const returnValue = evalBody(expr.body);
+			
+			const result = tailCall ? [
+					evalExpression(tailCall.operator),
+					[returnValue, ...evalList(tailCall.arguments)]
+			] : returnValue;
+
+			scopes = oldScopes;
+
 			return result;
 		});
 
-		operator.sourceCode = format(body.toString());
-		operator.closure = closure;
-		operator.scopeType = StackFrame;
+		if (tailCall) operator.tailCall = true;
 
-		StackFrame.operator = operator;
-		StackFrame.closure = closure;
+		operator.sourceCode = format(expr.body.textContent.replace(/\s+/g, " "));
 
-		value = operator;
-	} else if (s.type("identifier")) { // variable
-		value = currentScope[s.next()];
-	} else if (s.type("number")) { // number
-		value = parseFloat(s.next());
-	} else throw new SyntaxError(`Unexpected token '${s.get()}'`);
-
-	while (s.has(INDEX_OPEN)) {
-		if (value instanceof Operator) {
-			const operands = [];
-			s.next();
-			while (!s.has(INDEX_CLOSE) && s.length) operands.push(evalValue(s, closures));
-			s.next();
-			value = value.operate(...operands);
-		} else if (value instanceof List) {
-			s.next();
-			if (s.has(":")) {
-				s.next();
-				const endIndex = evalValue(s, closures);
-				s.next();
-				value = value.slice(0, endIndex);
-			} else {
-				const index = evalValue(s, closures);
-				if (s.has(":")) {
-					s.next();
-					if (s.has(INDEX_CLOSE)) {
-						s.next();
-						value = value.slice(index);
-					} else {
-						const endIndex = evalValue(s, closures);
-						s.next();
-						value = value.slice(index, endIndex);
-					}
-				} else {
-					s.next();
-					value = value.at(index);
-				}
-			}
-		} else throw new TypeError(`Type '${typeOf(value)}' cannot be indexed`);
+		return operator;
 	}
 
-	if (s.has(",")) s.next();
-
-	return value;
-}
-
-let lastExpressionEvaluated = null;
-function evalExpression(s, closures = []) {
-	let acc = evalValue(s, closures);
-
-	if (acc instanceof Operator) { // first step is a function call
-		const rhs = [];
-		while (s.length && !s.has("|>"))
-			rhs.push(evalValue(s, closures));
-		if (rhs.length) acc = acc.operate(...rhs);
-	} else if (s.length && !s.has("|>"))
-		throw new SyntaxError(`Cannot call type '${typeOf(acc)}'`);
-
-	while (s.has("|>")) {
-		s.next();
-
-		if (s.has("is")) {
-			s.next();
-			const name = s.get();
-			s.next();
-			currentScope[name] = acc;
-			if (s.length && !s.has("|>"))
-				throw new SyntaxError(`Labeling takes only one argument (labeling '${name}')`);
-		} else if (s.has("to")) {
-			s.next();
-			acc = evalValue(s, closures);
-		} else {
-			const operator = evalValue(s, closures);
-			const rhs = [];
-			while (rhs.length < operator.operands.length - 1)
-				rhs.push(evalValue(s, closures));
-			if (acc === undefined)
-				throw new SyntaxError("Must specify 'to' before post-void expression");
-			else {
-				if (operator instanceof Operator)
-					acc = operator.operate(acc, ...rhs);
-				else throw new TypeError(`Step cannot begin with type '${typeOf(operator)}'`);
-			}
-		}
-	}
-
-	return lastExpressionEvaluated = acc;
-}
-
-function evalLine(stream) {
-	const s = stream.until(";");
-	stream.next();
-	if (s.has("=", 1) && !s.has(OPERATOR_OPEN)) currentScope[s.get(0)] = evalExpression(s.skip(2));
-	else evalExpression(s);
-}
-
-const SINGLE_LINE_COMMENT_REGEX = /\/\/(.*?)(\n|$)/g;
-const MULTILINE_COMMENT_REGEX = /\/\*((.|\n)*?)\*\//g;
-
-function lowerStrings(command) {
-	const lines = command.split("\n");
-	let result = [];
-	let commented = false;
-	const stringTypes = new Set(`'"`);
-	const escapeCharacterMapping = {
-		"t": "\t",
-		"n": "\n",
-		"\\": "\\"
-	};
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		let finalLine = "";
-		let stringType = null;
-		let escaped = false;
-		let stringAcc = "";
-		for (let j = 0; j < line.length; j++) {
-			const char = line[j];
-			const next = line[j + 1];
-			if (commented && char + next === "*/") {
-				commented = false;
-				j++;
-				continue;
-			} else if (!commented && !stringType && char + next === "/*")
-				commented = true;
-			
-			if (!commented) {
-				if (!stringType && stringTypes.has(char))
-					stringType = char;
-				else if (!escaped && stringType === char) {
-					if (stringType === "'") {
-						if (stringAcc.length > 1)
-							throw new SyntaxError("Character literal cannot contain multiple characters");
-						finalLine += stringAcc.charCodeAt(0);
-					} else 
-						finalLine += `{ ${
-							stringAcc
-								.split("")
-								.map(char => char.charCodeAt(0))
-								.join(", ")
-						} }`;
-					stringType = null;
-					stringAcc = "";
-				} else if (stringType) {
-					if (escaped && char in escapeCharacterMapping)
-						stringAcc += escapeCharacterMapping[char];
-					else if (char !== "\\")
-						stringAcc += char;
-				} else finalLine += char;
-				
-				if (stringType && !escaped && char === "\\") escaped = true;
-				else escaped = false;
-			}
-		}
-
-		if (stringAcc)
-			throw new SyntaxError("Unterminated string");
-
-		result.push(finalLine);
-	}
-	return result.join("\n");
+	return "failure";
 }
 
 function evalStat(command) {
-	scopes = [];
+	resetScopes();
 
-	command = lowerStrings(command);
+	const ast = parse(command);
+	const { make } = AST;
+	ast.transform(AST.Assignment, ({ target, value }) => {
+		return make.FullExpression(value, make.Alias(target));
+	});
+	ast.transform(AST.Expression, expr => {
+		if (expr.step instanceof AST.Property)
+			return make.Expression(
+				make.Reference("read"),
+				make.Arguments([
+					expr.base,
+					make.StringValue(JSON.stringify(expr.step.key))
+				])
+			);
+		
+		return expr;
+	});
+	ast.transform(AST.Field, ({ key, value }) => {
+		const method = value instanceof AST.Operator || (value instanceof AST.Expression && value.step instanceof AST.Overload);
+		
+		if (method) {
+			const body = make.Body([value]);
+			body.textContent = value.textContent;
+			value = make.Operator(
+				[make.Parameter(undefined, "this")],
+				body
+			);
+		}
 
-	command = command // remove comments
-		.replace(SINGLE_LINE_COMMENT_REGEX, "$2") // single line
-		.replace(MULTILINE_COMMENT_REGEX, ""); // multiline	
+		return make.Expression(
+			make.Reference(method ? "method" : "field"),
+			make.Arguments([
+				make.StringValue(JSON.stringify(key)),
+				value
+			])
+		);
+	});
+	ast.transform(AST.InitialCall, ({ operator, arguments: [first, ...rest] }) => {
+		return make.FullExpression(
+			first, make.Call(operator, rest)
+		);
+	});
+	ast.transform(AST.Operator, op => {
+		op.body.statements = op.body.statements.map(stmt => {
+			if (!(stmt.step instanceof AST.Call)) return stmt;
+			op.tailCall = stmt.step;
+			return stmt.base;
+		});
+		return op;
+	});
 
-	const stream = tokenize(command);
-	lastExpressionEvaluated = null;
-	while (stream.length) evalLine(stream);
-	return lastExpressionEvaluated;
+	return evalBody(ast);
 }
 
-
 // built-ins
+currentScope["true"] = 1;
+currentScope["false"] = 0;
+currentScope["NaN"] = NaN;
+currentScope["Infinity"] = Infinity;
+
 for (const op of [
 	"+", "-", "*", "/", "%", "**",
 	"&&", "||", "==", "!=", "<=", ">=", "<", ">"
@@ -787,7 +626,7 @@ currentScope["==="] = new Operator([
 	[new Type("any"), "b"]
 ], (a, b) => {
 	const recurseEqual = (list1, list2) => {
-		return +list1.elements.every((v, i) => {
+		return list1.elements.every((v, i) => {
 			const v2 = list2.elements[i];
 			if (v instanceof List)
 				return recurseEqual(v, v2);

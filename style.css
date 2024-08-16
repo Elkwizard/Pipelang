@@ -9,6 +9,9 @@
 	background: none;
 	outline: none;
 	line-height: 1.1;
+
+	scrollbar-color: var(--scroll) transparent;
+	scrollbar-width: thin;
 }
 
 :root {
@@ -17,25 +20,28 @@
 }
 
 :root {
-	--primary: var(--light);
-	--secondary: var(--dark);
-}
-
-:root {
 	--primary: var(--dark);
 	--secondary: var(--light);
+	--scroll: #223;
 }
 
+@media (prefers-color-scheme: light) {
+	:root {
+		--primary: var(--light);
+		--secondary: var(--dark);
+		--scroll: #ddd;
+	}
+}
 
-* {	
+.log, #commandHighlight {	
 	/* color: transparent !important; */
 
 	/* text-shadow: 0px 0px 4px currentColor, 1px 1px 0px black; */
 	/* text-shadow: 0px 0px 4px currentColor;  */
 	
-	/* filter: saturate(200%) blur(.02em); */
+	/* filter: saturate(800%) blur(0.5vh); */
 	
-	/*text-shadow: 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor;*/
+	/* text-shadow: 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor, 0px 0px 40px currentColor; */
 	
 	/* color: transparent !important; */
 	
