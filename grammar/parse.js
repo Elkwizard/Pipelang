@@ -167,332 +167,82 @@ AST.root = class root extends AST { static labels = []; }
 	}
 	
 	class Graph {
-	constructor(label, start, end = start, repeated = false) {
-		this.start = start;
-		this.end = end;
-		if (label) {
-			this.start.label = label;
-			this.end.label = label;
+		constructor(name, start, end, nodes) {
+			this.name = name;
+			this.start = start;
+			this.end = end;
+			this.nodes = nodes;
 		}
-
-		if (repeated)
-			this.forEach(node => node.repeated = true);
-
-		this.simplify();
-	}
-	get initialNodes() {
-		const getInitialNodes = node => {
-			if (node.match) return [node];
-			return node.to.flatMap(getInitialNodes);
-		};
-		return getInitialNodes(this.start);
-	}
-	copy() {
-		return Graph.hydrate(this.flatten());
-	}
-	forEach(fn) {
-		this.start.forEach(fn);
-	}
-	simplify() {
-		const toRemove = [];
-		this.forEach(node => {
-			const from = node.from.length;
-			const to = node.to.length;
-			if (
-				!node.match &&
-				!node.enclose &&
-				node !== this.start &&
-				node !== this.end &&
-				(from <= 1 || to <= 1)
-			) toRemove.push(node);
-		});
-
-		for (const node of toRemove)
-			node.merge();
-	}
-	preprocess(definitions, asts) {
-		this.astClass = asts[this.name];
-		this.forEach(node => {
-			if (node.reference)
-				if (!node.terminal) node.match = definitions[node.match];
-			for (const key in node.typeChoices)
-				node.typeChoices[key] = node.typeChoices[key].map(index => node.to[index]);
-			for (const key in node.literalChoices)
-				node.literalChoices[key] = node.literalChoices[key].map(index => node.to[index]);
-		});
-	}
-	categorize(definitions, types) {
-		this._definitions = definitions;
-		this._types = types;
-		this.labels = new Set();
-		this.forEach(node => {
-			node._definitions = definitions;
-			node._types = types;
-			node._graph = this;
-			if (node.reference && !(node.match in definitions))
-				node.terminal = true;
-
-			if (node.label) this.labels.add(node.label);
-		});
-		this.labels = [...this.labels];
-		this._references = [];
-		for (const key in definitions) {
-			const graph = definitions[key];
-			graph.forEach(node => {
-				if (node.reference && node.match === this.name)
-					this._references.push(node);
-			});
+		preprocess() {
+			this.astClass = AST[this.name];
+			for (const node of this.nodes) {
+				if (node.reference)
+					if (!node.terminal) node.match = definitions[node.match];
+				for (const key in node.typeChoices)
+					node.typeChoices[key] = node.typeChoices[key].map(index => node.to[index]);
+				for (const key in node.literalChoices)
+					node.literalChoices[key] = node.literalChoices[key].map(index => node.to[index]);
+			}
 		}
-	}
-	removeInitialRecursion() {
-		const toRemove = this.initialNodes
-			.filter(node => node.reference && node.match === this.name);
-
-		const end = this.end;
-		this.end = new Node();
-
-		const start = this.start;
-		this.start = new Node();
-		this.start.connect(start);
-
-		for (const node of toRemove) {
-			node.reference = false;
-			node.match = null;
-			node.enclose = true;
+		static hydrate({ nodes, start, end, name }) {
+			for (const node of nodes)
+				node.to = node.to.map(inx => nodes[inx]);
 			
-			for (const from of [...node.from])
-				from.replaceConnection(node, start);
-			end.connect(node);
+			return new Graph(name, nodes[start], nodes[end], nodes);
 		}
-		
-		end.connect(this.end);
-
-		this.simplify();
 	}
-	computeFastChoices() {
-		this.forEach(node => node.computeFastChoices());
-	}
-	flatten() {
-		const nodeSet = new Set();
-
-		function search(node) {
-			if (nodeSet.has(node)) return;
-			nodeSet.add(node);
-			node.to.map(search);
-		}
-
-		search(this.start);
-
-		const nodes = [...nodeSet];
-		const start = nodes.indexOf(this.start);
-		const end = nodes.indexOf(this.end);
-		const result = [];
-		for (let i = 0; i < nodes.length; i++) {
-			const node = { };
-			const source = nodes[i];
-			for (const key in source)
-				if (key[0] !== "_")
-					node[key] = source[key];
-			node.to = node.to.map(node => nodes.indexOf(node));
-			delete node.from;
-			result.push(node);
-		}
-
-		return {
-			nodes: result,
-			start, end,
-			name: this.name,
-			replaced: this.replaced
-		};
-	}
-	static hydrate(graph) {
-		const nodes = graph.nodes.map(node => {
-			const result = new Node(node.match);
-			Object.assign(result, node);
-			result.baseTo = node.to;
-			result.to = [];
-			return result;
-		});
-
-		for (const node of nodes) {
-			for (const dst of node.baseTo)
-				node.connect(nodes[dst]);
-			delete node.baseTo;
-		}
-		
-		const result = new Graph(null, nodes[graph.start], nodes[graph.end]);
-		result.name = graph.name;
-		result.replaced = graph.replaced;
-		return result;
-	}
-}
 	
-	class Node {
-	constructor(match = null) {
-		this.match = match;
-		this.reference = false;
-		this.from = [];
-		this.to = [];
-		this.label = null;
-		this.enclose = false;
-	}
-	get canComplete() {
-		if (this._canComplete === undefined) {
-			if (this === this._graph.end) this._canComplete = true;
-			else this._canComplete = this.to.some(node => !node.match && node.canComplete);
+	class TokenStream {
+		constructor(tokens) {
+			this.all = tokens;
 		}
-
-		return this._canComplete;
-	}
-	get initialTerminals() {
-		if (!this._initialTerminals) {
-			this._initialTerminals = this.computeInitialTerminals();
-		}
-
-		return this._initialTerminals;
-	}
-	computeInitialTerminals() {
-		if (this._computingTerminals) return [];
-		this._computingTerminals = true;
-		const result = this.getInitialTerminals();
-		this._computingTerminals = false;
-		return result;
-	}
-	getInitialTerminals() {
-		if (this._initialTerminals) return this._initialTerminals;
-		
-		if (!this.match) {
-			if (this === this._graph.end)
-				return this._graph._references
-					.flatMap(ref => ref.to.flatMap(node => node.computeInitialTerminals()));
-			return this.to.flatMap(node => node.computeInitialTerminals());
-		}
-
-		if (!this.reference || this.terminal)
-			return [this];
-		
-		return this._definitions[this.match].start.computeInitialTerminals();
-	}
-	get initialLiterals() {
-		return new Set(
-			this.initialTerminals
-				.filter(node => !node.reference)
-				.map(node => node.match)
-		);
-	}
-	get initialTypes() {
-		return new Set(
-			this.initialTerminals
-				.filter(node => node.reference && node.terminal)
-				.map(node => node.match)
-		);
-	}
-	get initialTerminalTypes() {
-		return new Set(
-			this.initialTerminals
-				.filter(node => !node.reference || node.terminal)
-				.flatMap(node => {
-					const { match } = node;
-					if (node.terminal) return [match];
-					return this.literalTypes(match);
-				})
-		);
-	}
-	literalTypes(match) {
-		const types = [];
-		for (const key in this._types) {
-			const [regex, js] = this._types[key];
-			if (regex.test(match)) {
-				types.push(key);
-				if (!js) break;
-			}
-		}
-		return types;
-	}
-	computeFastChoices() {
-		{ // types
-			this.typeChoices = { };
-
-			for (let i = 0; i < this.to.length; i++) {
-				const node = this.to[i];
-				for (const type of node.initialTerminalTypes)
-					(this.typeChoices[type] ??= []).push(i);
-			}
-		}
-
-		{ // literals
-			this.literalChoices = { }; 
-			
-			const literals = new Set(this.to.flatMap(node => [...node.initialLiterals]));
-			const typeToLiterals = { };
-			for (const literal of literals)
-				for (const type of this.literalTypes(literal))
-					(typeToLiterals[type] ??= []).push(literal);
-
-			for (let i = 0; i < this.to.length; i++) {
-				const node = this.to[i];
-				for (const literal of node.initialLiterals)
-					(this.literalChoices[literal] ??= []).push(i);
-				for (const type of node.initialTypes)
-					for (const literal of typeToLiterals[type] ?? [])
-						(this.literalChoices[literal] ??= []).push(i);
-			}
-
-			for (const key in this.literalChoices)
-				this.literalChoices[key] = [...new Set(this.literalChoices[key])];
+		remove(type) {
+			this.all = this.all.filter(tok => tok.type !== type);
 		}
 	}
-	replace(graph) {
-		for (const from of this.from)
-			from.replaceConnection(this, graph.start);
-		for (const to of this.to)
-			graph.end.connect(to);
-	}
-	becomeStart() {
-		for (const from of this.from)
-			from.to.splice(from.to.indexOf(this), 1);
-		this.from = [];
-	}
-	becomeEnd() {
-		for (const to of this.to)
-			to.from.splice(to.from.indexOf(this), 1);
-		this.to = [];
-	}
-	remove() {
-		this.becomeStart();
-		this.becomeEnd();
-	}
-	merge() {
-		for (const from of this.from)
-			from.to.splice(from.to.indexOf(this), 1, ...this.to);
-		for (const to of this.to)
-			to.from.splice(to.from.indexOf(this), 1, ...this.from);
-	}
-	validConnection(to) {
-		return this.match || this !== to;
-	}
-	replaceConnection(find, replace) {
-		if (find === replace) return;
-		const valid = this.validConnection(replace);
-		this.to.splice(this.to.indexOf(find), 1, ...(valid ? [replace] : []));
-		find.from.splice(find.from.indexOf(this), 1);
-		if (valid) replace.from.push(this);
-	}
-	connect(to) {
-		if (!this.validConnection(to)) return;
-		to.from.push(this);
-		this.to.push(to);
-	}
-	forEach(fn, found = new Set()) {
-		if (found.has(this)) return;
-		found.add(this);
-		fn(this);
-		for (const dst of this.to)
-			dst.forEach(fn, found);
-	}
-}
+
+	const { color, background, indent } = (() => {
+	const FOREGROUND_OFFSET = 30;
+	const BACKGROUND_OFFSET = 40;
+	const COLOR_MAP = {
+		"black": 0,
+		"red": 1,
+		"green": 2,
+		"yellow": 3,
+		"blue": 4,
+		"magenta": 5,
+		"cyan": 6,
+		"light gray": 7,
+		"dark gray": 60,
+		"light red": 61,
+		"light green": 62,
+		"light yellow": 63,
+		"light blue": 64,
+		"light magenta": 65,
+		"light cyan": 66,
+		"white": 67
+	};
 	
-	class Token {
+	function color(name, text) {
+		const code = COLOR_MAP[name] + FOREGROUND_OFFSET;
+		return `\x1b[${code}m${text}\x1b[0m`;
+	}
+
+	function background(name, text) {
+		const code = COLOR_MAP[name] + BACKGROUND_OFFSET;
+		return `\x1b[${code}m${text}\x1b[0m`;
+	}
+	
+	function indent(str) {
+		return str
+			.split("\n")
+			.map(line => "    " + line)
+			.join("\n");
+	}
+
+
+	return { color, background, indent };
+})();class Token {
 	constructor(content, type, position = 0, source = content) {
 		this.content = content;
 		this.type = type;
@@ -541,161 +291,7 @@ AST.root = class root extends AST { static labels = []; }
 	toString() {
 		return `(${this.type.toString()}: ${color("blue", this.content)})`;
 	}
-}
-
-class TokenStream {
-	constructor(tokens = []) {
-		this.tokens = [...tokens].reverse();
-	}
-
-	get length() {
-		return this.tokens.length;
-	}
-
-	get all() {
-		return [...this.tokens].reverse();
-	}
-
-	copy() {
-		return new TokenStream(this.all);
-	}
-
-	prepend(token) {
-		this.tokens.push(token);
-	}
-
-	has(content, index = 0) {
-		if (index >= this.tokens.length)
-			return false;
-		
-		const token = this.tokens[this.tokens.length - index - 1];
-		if (typeof content === "string")
-			return token.content === content;
-		return token.type === content;
-	}
-
-	hasAny(...options) {
-		let index = 0;
-		if (typeof options[options.length - 1] === "number")
-			index = options.pop();
-
-		for (let i = 0; i < options.length; i++)
-			if (this.has(options[i], index))
-				return true;
-
-		return false;
-	}
-
-	get(index, quiet) {
-		return this.getToken(index, quiet).content;
-	}
-
-	getToken(index = 0, quiet = false) {
-		if (index >= this.tokens.length && !quiet)
-			throw new RangeError("Desired index is out of bounds");
-		return this.tokens[this.tokens.length - index - 1];
-	}
-
-	skip(amount) {
-		if (amount > this.tokens.length)
-			throw new RangeError("Cannot skip over tokens in an empty stream");
-		this.tokens.length -= amount;
-	}
-	
-	skipAll(tok) {
-		while (this.has(tok)) this.next();
-	}
-
-	remove(content) {
-		if (typeof content === "string")
-			this.tokens = this.tokens.filter(token => token.content !== content);
-		else
-			this.tokens = this.tokens.filter(token => token.type !== content);
-	}
-
-	nextToken() {
-		if (!this.tokens.length)
-			throw new RangeError("Cannot advance an empty stream");
-
-		return this.tokens.pop();
-	}
-
-	next(expected) {
-		if (!this.tokens.length)
-			throw new RangeError("Cannot advance an empty stream");
-		
-		const token = this.tokens.pop();
-
-		if (expected !== undefined) {
-			if (typeof expected === "string") {
-				if (token.content !== expected)
-					token.error(`Unexpected token '${token.content}', expected '${String(expected)}'`);
-			} else {
-				if (token.type !== expected)
-					token.error(`Unexpected token '${token.content}', expected token of type '${String(expected)}'`);
-			}
-		}
-
-		return token.content;
-	}
-
-	optional(content) {
-		if (this.has(content)) {
-			this.next();
-			return true;
-		}
-
-		return false;
-	}
-
-	until(tok) {
-		const result = [];
-		while (this.tokens.length && !this.has(tok))
-			result.push(this.nextToken());
-		return new TokenStream(result);
-	}
-
-	endOf(open, close) {
-		const result = [];
-
-		this.until(open);
-		if (!this.tokens.length)
-			throw new RangeError(`The specified boundaries "${open}${close}" don't exist`);
-		this.next();
-
-		let depth = 1;
-		while (this.tokens.length && depth) {
-			if (this.has(open)) depth++;
-			if (this.has(close)) depth--;
-			result.push(this.nextToken());
-		}
-
-		result.pop();
-		return new TokenStream(result);
-	}
-
-	delimitedList(parseItem, delimiter, interrupt) {
-		const results = [];
-
-		while (this.tokens.length) {
-			results.push(parseItem(this));
-
-			if (interrupt !== undefined && this.has(interrupt))
-				break;
-
-			if (this.tokens.length)
-				this.next(delimiter);
-		}
-
-		return results;
-	}
-
-	toString() {
-		return this.all.join(" ");
-	}
-}
-
-class TokenStreamBuilder {
+}class TokenStreamBuilder {
 	constructor(source) {
 		this.source = source;
 		this.index = 0;
@@ -734,49 +330,7 @@ class TokenStreamBuilder {
 		return builder.stream;
 	}
 }
-const { color, background, indent } = (() => {
-	const FOREGROUND_OFFSET = 30;
-	const BACKGROUND_OFFSET = 40;
-	const COLOR_MAP = {
-		"black": 0,
-		"red": 1,
-		"green": 2,
-		"yellow": 3,
-		"blue": 4,
-		"magenta": 5,
-		"cyan": 6,
-		"light gray": 7,
-		"dark gray": 60,
-		"light red": 61,
-		"light green": 62,
-		"light yellow": 63,
-		"light blue": 64,
-		"light magenta": 65,
-		"light cyan": 66,
-		"white": 67
-	};
-	
-	function color(name, text) {
-		const code = COLOR_MAP[name] + FOREGROUND_OFFSET;
-		return `\x1b[${code}m${text}\x1b[0m`;
-	}
 
-	function background(name, text) {
-		const code = COLOR_MAP[name] + BACKGROUND_OFFSET;
-		return `\x1b[${code}m${text}\x1b[0m`;
-	}
-	
-	function indent(str) {
-		return str
-			.split("\n")
-			.map(line => "    " + line)
-			.join("\n");
-	}
-
-
-	return { color, background, indent };
-})();
-	
 	const regex = [[/^(?:\/\/.*|\/\*([\w\W]*?)\*\/)/, "comment", null], [/^(?:"((\\.)*(.*?))*?")/, "string", null], [/^(?:'\\?.')/, "char", null], [/^(?:[{}()\[\];,:.#]|\|>|(=(?!=)))/, "symbol", null], [/^(?:\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b)/, "number", null], [/^(?:\w+|\|+|[^\w\s(){}\[\]|'",:;.#]+)/, "identifier", null]];
 	const types = { };
 	for (const pair of regex) {
@@ -791,7 +345,7 @@ const { color, background, indent } = (() => {
 		definitions[name] = Graph.hydrate(definitions[name]);
 
 	for (const name of definitionNames)
-		definitions[name].preprocess(definitions, AST);
+		definitions[name].preprocess();
 	
 	function parse(source) {
 		source = source.replace(/\r/g, "");
