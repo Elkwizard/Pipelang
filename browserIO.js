@@ -50,6 +50,9 @@ function clear() {
 	document.getElementById("logs").innerHTML = "";
 }
 
+function logElement(element) {
+	document.getElementById("logs").appendChild(element);
+}
 
 { // command bar
 	const statements = [""];
