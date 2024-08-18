@@ -5,6 +5,12 @@ evalStat(`
 	real condition = condition
 		|> == false
 ];
+^ = **;
+!== = [
+	a, b = a
+		|> === b
+		|> !
+];
 ++ = [
 	real number = number
 		|> + 1
@@ -871,14 +877,16 @@ projectOnto = [
 
 cross = [
 	real(3) u, real(3) v = {
-		-(*(u(1), v(2)), *(u(2), v(1))),
-		-(*(u(2), v(0)), *(u(0), v(2))),
-		-(*(u(0), v(1)), *(u(1), v(0)))
+		u(1) * v(2) - u(2) * v(1),
+		u(2) * v(0) - u(0) * v(2),
+		u(0) * v(1) - u(1) * v(0)
 	}
+] & [
+	real(2) u, real(2) v = (u(0) * v(1) - u(1) * v(0))
 ];
 
 planeNormal = [
-	real() a, real() b, real() c = cross -(a, b) -(c, b)
+	real() a, real() b, real() c = cross #(a - b) #(c - b)
 ];
 
 mag = [
@@ -1550,7 +1558,7 @@ gamma = [
 		|> to [
 			real x = x
 				|> pow zm1
-				|> * exp(-(x))
+				|> * exp(-x)
 		]
 		|> integral 0 GAMMA_MAX_X GAMMA_DX
 ];
@@ -1561,7 +1569,7 @@ upperGamma = [
 		|> to [
 			real t = t
 				|> pow sm1
-				|> * exp(-(t))
+				|> * exp(-t)
 		]
 		|> integral min(x, GAMMA_MAX_X) GAMMA_MAX_X GAMMA_DX
 ];
@@ -1572,7 +1580,7 @@ lowerGamma = [
 		|> to [
 			real t = t
 				|> pow sm1
-				|> * exp(-(t))
+				|> * exp(-t)
 		]
 		|> integral 0 min(x, GAMMA_MAX_X) GAMMA_DX
 ];

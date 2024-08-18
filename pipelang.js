@@ -400,15 +400,6 @@ function evalExpression(expr) {
 	if (expr instanceof AST.List)
 		return new List(evalList(expr.elements));
 
-	if (expr instanceof AST.Prefix)
-		return tryOperate(currentScope[expr.op], [evalExpression(expr.target)]);
-
-	if (expr instanceof AST.Sum || expr instanceof AST.Product)
-		return tryOperate(currentScope[expr.op], [
-			evalExpression(expr.left),
-			evalExpression(expr.right)
-		]);
-
 	if (expr instanceof AST.Expression) {
 		const base = evalExpression(expr.base);
 		const { step } = expr;
@@ -526,6 +517,14 @@ function evalStat(command) {
 			return stmt.base;
 		});
 		return op;
+	});
+	ast.transform([AST.Prefix, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
+		const { op, ...rest } = node;
+		const args = Object.values(rest);
+		return make.Expression(
+			make.Reference(op),
+			make.Arguments(args)
+		);
 	});
 
 	return evalBody(ast);

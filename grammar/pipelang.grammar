@@ -11,8 +11,8 @@ NumberValue = value:number
 StringValue = value:string
 CharValue = value:char
 Value = NumberValue | StringValue | CharValue
-Field = key:identifier ":" value:Expression
-List = "{" (elements:Expression[","?] | elements:Field[","?]) "}"
+Field = key:identifier ":" value:Precedence
+List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
 Dimension = "(" length:number? ")"
 Type = base:("any" | "real" | "operator" | "primitive") dimensions:Dimension*
 Parameter = type:Type? name:identifier
@@ -32,8 +32,11 @@ Expression = base:Expression step:Suffix | BaseExpression
 // precedence expressions
 Precedence = operators Expression {
 	prefix Prefix ("-")
+	right Exponential ("^" | "**")
 	left Product ("*" | "/" | "%")
 	left Sum ("+" | "-")
+	left Compare ("==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=")
+	left Logic ("&&" | "||")
 	custom Conditional (condition:last "?" ifTrue:Precedence ":" ifFalse:Conditional)
 }
 
