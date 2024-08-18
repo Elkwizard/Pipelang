@@ -1660,10 +1660,10 @@ switch = [
 		]
 ];
 field = [
-	real() name, any value = { [name], [struct = value] }
+	real() name, any value = { [= name], [struct = value] }
 ];
 method = [
-	real() name, operator fn = { [name], fn }
+	real() name, operator fn = { [= name], fn }
 ];
 read = [
 	operator()(2) struct, real() name = struct
@@ -1687,7 +1687,7 @@ Vec3 = [real(3) coords = {
 		|> * coords
 		|> Vec3
 	],
-	getCoords: [coords]
+	getCoords: [= coords]
 }];
 
 // strings
@@ -1720,7 +1720,7 @@ buildString = [
 
 // hash table
 Entry = [
-	any key, any value = { [key], [value] }
+	any key, any value = { [= key], [= value] }
 ];
 
 hash = [

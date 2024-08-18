@@ -5,6 +5,7 @@ symbol = /[{}()\[\];,:.#]|\|>|(=(?!=))/
 number = /\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g
 identifier = /\w+|\|+|[^\w\s(){}\[\]|'",:;.#]+/
 
+// base expressions
 Reference = name:identifier
 NumberValue = value:number
 StringValue = value:string
@@ -15,17 +16,28 @@ List = "{" (elements:Expression[","?] | elements:Field[","?]) "}"
 Dimension = "(" length:number? ")"
 Type = base:("any" | "real" | "operator" | "primitive") dimensions:Dimension*
 Parameter = type:Type? name:identifier
-Operator = "[" (parameters:Parameter[","] "=")? body:Body "]"
-BaseExpression = Operator | List | Reference | Value
+Operator = "[" parameters:Parameter[","] "=" body:Body "]"
+Nested = "#"? "(" replace:Precedence ")"
+BaseExpression = Nested | Operator | List | Reference | Value
 FromIndex = start:Expression ":"
 ToIndex = ":" end:Expression
 IndexRange = start:Expression ":" end:Expression
-Index = ToIndex | IndexRange | FromIndex
-Arguments = arguments:Expression[","?]
+Index = "(" replace:(ToIndex | IndexRange | FromIndex) ")"
+Arguments = "(" arguments:Precedence[","] ")"
 Property = "." key:identifier
 Overload = "&" overload:Expression
-Expression = base:Expression ("(" step:(Index | Arguments) ")" | step:(Property | Overload)) | BaseExpression
+Suffix = Arguments | Index | Property | Overload
+Expression = base:Expression step:Suffix | BaseExpression
 
+// precedence expressions
+Precedence = operators Expression {
+	prefix Prefix ("-")
+	left Product ("*" | "/" | "%")
+	left Sum ("+" | "-")
+	custom Conditional (condition:last "?" ifTrue:Precedence ":" ifFalse:Conditional)
+}
+
+// full expressions
 Call = operator:Expression arguments:Expression*
 Alias = "is" name:identifier
 Reset = "to" value:Expression

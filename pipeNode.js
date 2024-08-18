@@ -1,137 +1,24 @@
 const fs = require("fs");
 
-Array.prototype.toString = function () {
-	return `[${this.join(", ")}]`;
-};
-
-const run = (file, keys = []) => {
-	return eval(fs.readFileSync(file, "utf-8") + `; ({ ${keys.join(", ")} })`)
-};
-
-const document = {
-	createElement() {
-		return {
-			innerText: null,
-			get innerHTML() {
-				return this.innerText;
-			}
-		};
-	}
-};
-
-const { parse, AST } = run("./grammar/parse.js", ["parse", "AST"]);
-
-const {
-	callStack, currentScope, evalStat, Operator, Type, List
-} = run(
-	"./pipelang.js",
-	["callStack", "currentScope", "evalStat", "Operator", "Type", "List"]
-);
-const { highlight } = run("./highlightPL.js", ["highlight"]);
-run("./stdlib.js");
-
-const { color } = require("./formatting");
-
-function log(message, col = "white") {
-	console.log(color(col, message));
-}
-
-function logHTML(message, prefix = "") {
-	const usePalette = (name, palette) => {
-	for (const key in palette) {
-		message = message.replaceAll(new RegExp(
-			String.raw`\<span class\=\"${name} ${key}\"\>([\w\W]*?)\<\/span\>`, "g"
-			), color(palette[key], "$1"));
-		}
-	};
-		
-	usePalette("code", CODE_COLORS);
-	usePalette("output", OUT_COLORS);
+const importFile = file => {
+	const source = fs.readFileSync(file, "utf-8");
+	const keys = [...source.matchAll(/^(let|const|class|function)\s+(\w+)/gm)]
+		.map(match => match[2]);
+	const fnSource = `${source};\n({ ${keys.join(", ")} })`;
 	
-	console.log(prefix + message);
-}
-
-const CODE_COLORS = {
-	number: "light green",
-	function: "cyan",
-	symbol: "white",
-	type: "magenta",
-	comment: "dark blue",
-	string: "light yellow",
-	base: "dark gray"
+	return eval(fnSource);
 };
 
-const OUT_COLORS = {
-	number: "magenta",
-	function: "green",
-	symbol: "light gray",
-	type: "red",
-	comment: "blue",
-	string: "yellow",
-	base: "dark gray"
-};
+const log = msg => console.log(msg);
+const clear = () => console.clear();
 
-function exec(command) {
-	const JS_EXECUTED_COMMAND = "light gray";
-	const THROWN_ERROR = "red";
+const { AST, parse } = importFile("./grammar/parse.js");
+const {
+	currentScope, callStack, evalStat,
+	Operator, List, Type
+} = importFile("./pipelang.js");
+const { highlight } = importFile("./highlightPL.js");
+const { exec, addColor } = importFile("./index.js");
+importFile("./stdlib.js");
 
-	try {
-		const JS = command[0] === "#";
-		if (JS) log(command, JS_EXECUTED_COMMAND);
-		else logHTML(highlight(command, "code"));
-		const result = JS ? global.eval(command.slice(1)) : evalStat(command);
-		logHTML(highlight(result ?? "<void>", "output"), "» ");
-		if (result !== undefined) currentScope["ans"] = result;
-	} catch (err) {
-		// throw err;
-		log(err + "\n" + callStack.map(name => {
-			return "\t at " + name;
-		}).reverse().join("\n"), THROWN_ERROR);
-	}
-}
-
-currentScope["print"] = new Operator([
-	[new Type(null), "value"]
-], value => logHTML(highlight(value, "output")));
-
-currentScope["printString"] = new Operator([
-	[new Type("real", [null]), "charCodes"]
-], charCodes => log(String.fromCharCode(...charCodes.toArray())));
-
-currentScope["printChar"] = new Operator([
-	[new Type("real"), "charCode"]
-], charCode => log(String.fromCharCode(charCode)));
-
-currentScope["printMatrix"] = new Operator([
-	[new Type("real", [null, null]), "matrix"]
-], matrix => {
-	matrix = currentScope.roundTo.operate(matrix, currentScope.PRINT_MATRIX_DIGITS);
-	const strings = matrix.toArray().map(r => r.map(v => v.toString()));
-	const columnWidths = new Array(strings[0].length).fill(0);
-	for (let i = 0; i < strings.length; i++) {
-		for (let j = 0; j < strings[0].length; j++) {
-			columnWidths[j] = Math.max(columnWidths[j], strings[i][j].length);
-		}
-	}
-	const sp = " ";
-	const pad = (string, strLen, length) => {
-		const empty = length - strLen;
-		const left = Math.ceil(empty / 2);
-		const right = empty - left;
-		return sp.repeat(left) + string + sp.repeat(right);
-	};
-	const spacing = 1;
-	const totalWidth = columnWidths.reduce((a, b) => a + b, 0) + (columnWidths.length + 1) * spacing;
-	logHTML(`┌${sp.repeat(totalWidth)}┐\n` + strings.map(row => `│${sp.repeat(spacing)}${row.map((v, i) => pad(highlight(v, "output"), v.length, columnWidths[i])).join(sp.repeat(spacing))}${sp.repeat(spacing)}│`).join("\n") + `\n└${sp.repeat(totalWidth)}┘`);
-});
-
-currentScope["typeof"] = new Operator([
-	[new Type(null), "value"]
-], value => logHTML(highlight(typeOf(value), "output")));
-
-currentScope["clear"] = new Operator([], () => {
-	console.clear();
-	log("workspace cleared");
-});
-
-module.exports = { exec, currentScope, Operator, Type, List };
+module.exports = { exec, currentScope, Operator, List, Type };

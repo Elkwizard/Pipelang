@@ -1,4 +1,4 @@
-const { exec, currentScope, Operator, Type, List } = require("./pipeNode");
+const { exec, currentScope, Operator } = require("./pipeNode");
 
 currentScope["exit"] = new Operator([], () => process.exit(0));
 

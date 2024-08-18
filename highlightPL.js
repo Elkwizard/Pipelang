@@ -1,6 +1,6 @@
-function highlight(source, paletteName) {
+function highlight(source, palette) {
 	source += "";
-	const colors = new Array(source.length).fill(paletteName + " base");
+	const colors = new Array(source.length).fill("base");
 	function color(regex, col) {
 		const matches = source.matchAll(regex);
 		for (const match of matches) {
@@ -21,28 +21,26 @@ function highlight(source, paletteName) {
 	color(/\/\/.*/g, "comment");
 	color(/\/\*.\*\//gs, "comment");
 
-	const span = document.createElement("span");
-	function htmlEscape(text) {
-		span.innerText = text;
-		return span.innerHTML;
-	}
+	for (let i = 1; i < colors.length; i++)
+		if (!source[i].trim())
+			colors[i] = colors[i - 1];
 
-	let result = "";
-	let last = null;
-	for (let i = 0; i < source.length; i++) {
-		const color = colors[i];
-		const char = source[i];
-		if (char.trim() && color !== last) {
-			if (last !== null) result += "</span>";
-			result += `<span class="${paletteName} ${color}">`;
-			last = color;
+	const matched = source
+		.split("")
+		.map((ch, i) => ({ content: ch, color: colors[i] }));
+		
+	for (let i = 1; i < matched.length; i++) {
+		const last = matched[i - 1];
+		const current = matched[i];
+		if (current.color === last.color) {
+			last.content += current.content;
+			matched[i] = last;
+			matched[i - 1] = null;
 		}
-		result += htmlEscape(char);
 	}
 
-	result += "</span>";
-
-	// result = result.replace(/\t/g, "@@@@");
-
-	return result;
+	return matched
+		.filter(Boolean)
+		.map(({ content, color }) => addColor(palette[color], content))
+		.join("");
 }

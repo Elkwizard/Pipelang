@@ -400,6 +400,15 @@ function evalExpression(expr) {
 	if (expr instanceof AST.List)
 		return new List(evalList(expr.elements));
 
+	if (expr instanceof AST.Prefix)
+		return tryOperate(currentScope[expr.op], [evalExpression(expr.target)]);
+
+	if (expr instanceof AST.Sum || expr instanceof AST.Product)
+		return tryOperate(currentScope[expr.op], [
+			evalExpression(expr.left),
+			evalExpression(expr.right)
+		]);
+
 	if (expr instanceof AST.Expression) {
 		const base = evalExpression(expr.base);
 		const { step } = expr;
