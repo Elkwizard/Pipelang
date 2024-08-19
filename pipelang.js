@@ -332,10 +332,7 @@ function tryOperate(operator, args) {
 }
 
 function tryOperateStackless(operator, args) {
-	console.log("start!");
-	let i = 0;
 	while (true) {
-		console.log(i++, operator.localName);
 		if (operator instanceof Operator) {
 			callStack.push(operator.localName);
 			operator = operator.arrayOperate(args);
@@ -497,8 +494,7 @@ function evalStat(command) {
 		const method = value instanceof AST.Operator || (value instanceof AST.Expression && value.step instanceof AST.Overload);
 		
 		if (method) {
-			const body = make.Body([value]);
-			body.textContent = value.textContent;
+			const body = make.Body([value]).from(value);
 			value = make.Operator(
 				[make.Parameter(undefined, "this")],
 				body
@@ -524,9 +520,10 @@ function evalStat(command) {
 		return make.Expression(
 			make.Reference(op),
 			make.Arguments(args)
-		);
+		).from(node);
 	});
-	ast.transform(AST.Conditional, ({ condition, ifTrue, ifFalse }) => {
+	ast.transform(AST.Conditional, node => {
+		const { condition, ifTrue, ifFalse } = node;
 		return make.Expression(
 			make.Reference("?"),
 			make.Arguments([
@@ -534,7 +531,7 @@ function evalStat(command) {
 				make.Operator(undefined, make.Body([ifTrue])),
 				make.Operator(undefined, make.Body([ifFalse]))
 			])
-		);
+		).from(node);
 	});
 	ast.transform(AST.Operator, op => {
 		if (!(op.body instanceof AST.Body)) {
@@ -544,9 +541,7 @@ function evalStat(command) {
 				op.templateNames.add(node.name)
 			});
 			op.templateNames = [...op.templateNames];
-			const { textContent } = op.body;
-			op.body = make.Body([op.body]);
-			op.body.textContent = textContent;
+			op.body = make.Body([op.body]).from(op.body);
 		}
 		return op;
 	});

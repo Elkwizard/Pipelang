@@ -31,7 +31,7 @@ Expression = base:Expression step:Suffix | BaseExpression
 
 // precedence expressions
 Precedence = operators Expression {
-	prefix Prefix ("-")
+	prefix Prefix ("-" | "++" | "--")
 	right Exponential ("^" | "**")
 	left Product ("*" | "/" | "%")
 	left Sum ("+" | "-")
