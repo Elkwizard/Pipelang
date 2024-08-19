@@ -1636,7 +1636,6 @@ binomcdf = [
 		|> binompdf p trials
 		|> sum
 ];
-
 for = [
 	start, operator continue, operator inc, operator body = start
 		|> continue

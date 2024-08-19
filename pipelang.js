@@ -175,11 +175,12 @@ class OperandError extends TypeError {
 }
 
 class Operator {
-	constructor(operands, method) {
+	constructor(operands, method, tailCall = false) {
 		this.operands = operands;
 		this.operandTypes = operands.map(op => op[0]);
 		this.operandNames = operands.map(op => op[1]);
 		this.method = method;
+		this.tailCall = tailCall;
 		this.sourceCode = "...";
 		this.localName = "anonymous";
 	}
@@ -192,9 +193,8 @@ class Operator {
 		return this._localName;
 	}
 	copy() {
-		const result = new Operator(this.operands, this.method);
+		const result = new Operator(this.operands, this.method, this.tailCall);
 		result.sourceCode = this.sourceCode;
-		result.tailCall = this.tailCall;
 		if (result.overload) result.overload = result.overload.copy();
 		return result;
 	}
@@ -332,7 +332,10 @@ function tryOperate(operator, args) {
 }
 
 function tryOperateStackless(operator, args) {
+	console.log("start!");
+	let i = 0;
 	while (true) {
+		console.log(i++, operator.localName);
 		if (operator instanceof Operator) {
 			callStack.push(operator.localName);
 			operator = operator.arrayOperate(args);
@@ -420,17 +423,24 @@ function evalExpression(expr) {
 	}
 
 	if (expr instanceof AST.Operator) {
-		const parameters = (expr.parameters ?? []).map(parameter => {
-			let type;
-			if ("type" in parameter) {
-				const base = parameter.type.base;
-				const dimensions = (parameter.type.dimensions ?? [])
-					.map(dim => "length" in dim ? +dim.length : null)
-					.reverse();
-				type = new Type(base, dimensions);
-			} else type = new Type(null);
-			return [type, parameter.name];
-		});
+		let parameters;
+		if (expr.templateNames) {
+			parameters = expr.templateNames
+				.filter(name => !(name in currentScope))
+				.map(name => [new Type(null), name]);
+		} else {
+			parameters = (expr.parameters ?? []).map(parameter => {
+				let type;
+				if ("type" in parameter) {
+					const base = parameter.type.base;
+					const dimensions = (parameter.type.dimensions ?? [])
+						.map(dim => "length" in dim ? +dim.length : null)
+						.reverse();
+					type = new Type(base, dimensions);
+				} else type = new Type(null);
+				return [type, parameter.name];
+			});
+		}
 
 		const closure = [...scopes];
 
@@ -453,9 +463,7 @@ function evalExpression(expr) {
 			scopes = oldScopes;
 
 			return result;
-		});
-
-		if (tailCall) operator.tailCall = true;
+		}, !!tailCall);
 
 		operator.sourceCode = format(expr.body.textContent.replace(/\s+/g, " "));
 
@@ -510,14 +518,6 @@ function evalStat(command) {
 			first, make.Call(operator, rest)
 		);
 	});
-	ast.transform(AST.Operator, op => {
-		op.body.statements = op.body.statements.map(stmt => {
-			if (!(stmt.step instanceof AST.Call)) return stmt;
-			op.tailCall = stmt.step;
-			return stmt.base;
-		});
-		return op;
-	});
 	ast.transform([AST.Prefix, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
 		const { op, ...rest } = node;
 		const args = Object.values(rest);
@@ -525,6 +525,38 @@ function evalStat(command) {
 			make.Reference(op),
 			make.Arguments(args)
 		);
+	});
+	ast.transform(AST.Conditional, ({ condition, ifTrue, ifFalse }) => {
+		return make.Expression(
+			make.Reference("?"),
+			make.Arguments([
+				condition,
+				make.Operator(undefined, make.Body([ifTrue])),
+				make.Operator(undefined, make.Body([ifFalse]))
+			])
+		);
+	});
+	ast.transform(AST.Operator, op => {
+		if (!(op.body instanceof AST.Body)) {
+			op.templateNames = new Set();
+			op.body.forEach([AST.Operator, AST.Reference], node => {
+				if (node instanceof AST.Operator) return false;
+				op.templateNames.add(node.name)
+			});
+			op.templateNames = [...op.templateNames];
+			const { textContent } = op.body;
+			op.body = make.Body([op.body]);
+			op.body.textContent = textContent;
+		}
+		return op;
+	});
+	ast.transform(AST.Operator, op => {
+		op.body.statements = op.body.statements.map(stmt => {
+			if (!(stmt.step instanceof AST.Call)) return stmt;
+			op.tailCall = stmt.step;
+			return stmt.base;
+		});
+		return op;
 	});
 
 	return evalBody(ast);
@@ -572,7 +604,7 @@ currentScope["?"] = new Operator([
 	[new Type("real"), "condition"],
 	[new Type("operator"), "ifTrue"],
 	[new Type("operator"), "ifFalse"],
-], (cond, ifTrue, ifFalse) => cond ? ifTrue.operate() : ifFalse.operate());
+], (cond, ifTrue, ifFalse) => [cond ? ifTrue : ifFalse, []], true);
 
 currentScope["void"] = new Operator([
 	[new Type("any"), "terminal"]

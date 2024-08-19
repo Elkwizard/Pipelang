@@ -16,7 +16,7 @@ List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
 Dimension = "(" length:number? ")"
 Type = base:("any" | "real" | "operator" | "primitive") dimensions:Dimension*
 Parameter = type:Type? name:identifier
-Operator = "[" parameters:Parameter[","] "=" body:Body "]"
+Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
 Nested = "#"? "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
 FromIndex = start:Expression ":"
