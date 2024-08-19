@@ -7,7 +7,7 @@ evalStat(`
 ];
 ^ = **;
 !== = [
-	a, b = a
+	any a, any b = a
 		|> === b
 		|> !
 ];
@@ -1221,7 +1221,7 @@ minAll = [
 ];
 maxAll = [
 	real() list = list
-		|> reduce *(Infinity, -1) max
+		|> reduce -Infinity max
 ];
 argMin = [
 	real() list = list

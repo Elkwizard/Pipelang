@@ -15,14 +15,11 @@ Field = key:identifier ":" value:Precedence
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
 Dimension = "(" length:number? ")"
 Type = base:("any" | "real" | "operator" | "primitive") dimensions:Dimension*
-Parameter = type:Type? name:identifier
+Parameter = type:Type? name:Name
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
 Nested = "#"? "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
-FromIndex = start:Expression ":"
-ToIndex = ":" end:Expression
-IndexRange = start:Expression ":" end:Expression
-Index = "(" replace:(ToIndex | IndexRange | FromIndex) ")"
+Index = "(" start:Precedence? ":" end:Precedence? ")"
 Arguments = "(" arguments:Precedence[","] ")"
 Property = "." key:identifier
 Overload = "&" overload:Expression
@@ -42,13 +39,18 @@ Precedence = operators Expression {
 
 // full expressions
 Call = operator:Expression arguments:Expression*
-Alias = "is" name:identifier
+ListDestructure = "{" names:Name[","?] "}"
+DestructureField = key:identifier ":" name:Name?
+ObjectDestructure = "{" fields:DestructureField[","?] "}"
+WrappedName = "[" name:Name "]"
+Name = WrappedName | ListDestructure | ObjectDestructure | identifier
+Alias = "is" name:Name
 Reset = "to" value:Expression
 Step = Alias | Reset | Call
 InitialCall = operator:Expression arguments:Expression+
 FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
 
-Assignment = target:identifier "=" value:FullExpression
+Assignment = target:Name "=" value:FullExpression
 Statement = Assignment | FullExpression
 Body = statements:Statement{";"} ";"?
 

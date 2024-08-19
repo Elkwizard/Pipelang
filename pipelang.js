@@ -267,7 +267,11 @@ class Operator {
 		return new List(elements);
 	}
 	toString() {
-		let normalized = `[${this.operands.map(([type, name]) => type.ignore ? name : type + " " + name).join(", ")} = ${this.sourceCode}]`
+		let normalized = `[${this.operands.map(([type, name]) => {
+			let result = type.ignore ? "" : type + " ";
+			result += typeof name === "string" ? name : name.textContent;
+			return result;
+		}).join(", ")} = ${this.sourceCode}]`
 		if (this.overload) normalized += " & " + this.overload;
 		return normalized;
 	}
@@ -352,11 +356,27 @@ function evalList(list) {
 
 function evalBody({ statements }) {
 	let result;
-
 	for (const stmt of statements)
 		result = evalExpression(stmt);
-
 	return result;
+}
+
+function alias(binding, value) {
+	if (binding instanceof AST.WrappedName) {
+		alias(binding.name, tryOperate(value, []));
+	} else if (binding instanceof AST.ObjectDestructure) {
+		const { read } = currentScope;
+		for (const { key, name } of binding.fields)
+			alias(name, tryOperate(read, [value, key]));
+	} else if (binding instanceof AST.ListDestructure) {
+		if (!(value instanceof List))
+			throw new TypeError(`Cannot index into type '${typeOf(value)}'`);
+
+		for (let i = 0; i < binding.names.length; i++)
+			alias(binding.names[i], value.at(i))
+	} else {
+		currentScope[binding] = value;
+	}
 }
 
 function evalExpression(expr) {
@@ -365,7 +385,7 @@ function evalExpression(expr) {
 		let init = evalExpression(base);
 		
 		if (step instanceof AST.Alias) {
-			currentScope[step.name] = init;
+			alias(step.name, init);
 		} else if (step instanceof AST.Reset) {
 			init = evalExpression(step.value);
 		} else {
@@ -444,12 +464,15 @@ function evalExpression(expr) {
 		const { tailCall } = expr;
 
 		const operator = new Operator(parameters, (...args) => {
+			const oldScopes = scopes;
+			
 			const scope = new Map();
 			scope.set(Operator, operator);
-			for (let i = 0; i < args.length; i++)
-				scope.set(parameters[i][1], args[i]);
-			const oldScopes = scopes;
 			scopes = [...closure, scope];
+			
+			for (let i = 0; i < args.length; i++)
+				alias(parameters[i][1], args[i]);
+			
 			const returnValue = evalBody(expr.body);
 			
 			const result = tailCall ? [
@@ -553,6 +576,10 @@ function evalStat(command) {
 		});
 		return op;
 	});
+	ast.forEach(AST.DestructureField, field => {
+		if (!field.name) field.name = field.key;
+		field.key = evalExpression(make.StringValue(JSON.stringify(field.key)));
+	});
 
 	return evalBody(ast);
 }
@@ -638,6 +665,10 @@ currentScope["len"] = new Operator([
 	if (list instanceof List) return list.elements.length;
 	throw new TypeError("Cannot find length of non-list");
 });
+
+currentScope["arity"] = new Operator([
+	[new Type("operator"), "op"]
+], op => op.operands.length);
 
 currentScope["call"] = new Operator([
 	[new Type("any", [null]), "args"],
