@@ -901,7 +901,7 @@ cross = [
 ];
 
 planeNormal = [
-	real() a, real() b, real() c = cross #(a - b) #(c - b)
+	real() a, real() b, real() c = cross $(a - b) $(c - b)
 ];
 
 mag = [
@@ -1713,6 +1713,7 @@ Vec3 = [real(3) coords = {
 
 // strings
 String = real();
+# = [String a, String b = concat a b];
 
 toUpperCase = [
 	real ch = ch
@@ -1743,16 +1744,20 @@ join = [
 		|> reduce "" [
 			String acc, String element = acc
 				|> len
-				|> ? [= acc
-					|> concat delim
-					|> concat element
-				] [element]
+				|> ? [acc # delim # element] [element]
 		]
 ];
 replaceAll = [
 	String str, String find, String replace = str
 		|> split find
 		|> join replace
+];
+replace = [
+	String str, String find, String replace = find
+		|> findSeqIn str
+		|> is index
+		|> == -1
+		|> ? [str] [str(:index) # replace # str(index + len(find):)]
 ];
 
 // hash table
@@ -1894,14 +1899,6 @@ currentScope["linReg"] = new Operator([
 		return operator;
 	}
 });
-
-exec(`
-
-Object = operator(2)();
-object = { x: 5, y: 8 };
-[Object o = o.x](object);
-
-`);
 
 // y = 1.4 + 0.33*x_1 + 0.16*x_2 + e
 

@@ -1,9 +1,9 @@
 comment = /\/\/.*|\/\*([\w\W]*?)\*\//
 string = /"((\\.)*(.*?))*?"/
 char = /'\\?.'/
-symbol = /[{}()\[\];,:.#]|\|>|(=(?!=))/
+symbol = /[{}()\[\];,:.$]|\|>|(=(?!=))/
 number = /\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g
-identifier = /\w+|\|+|[^\w\s(){}\[\]|'",:;.#]+/
+identifier = /\w+|\|+|[^\w\s(){}\[\]|'",:;.$]+/
 
 // base expressions
 Reference = name:identifier
@@ -15,7 +15,7 @@ Field = key:identifier ":" value:Precedence
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
 Parameter = type:Expression? name:Name
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
-Nested = "#"? "(" replace:Precedence ")"
+Nested = "$"? "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
 Index = "(" start:Precedence? ":" end:Precedence? ")"
 Arguments = "(" arguments:Precedence[","] ")"
@@ -29,7 +29,7 @@ Precedence = operators Expression {
 	prefix Prefix ("-" | "++" | "--")
 	right Exponential ("^" | "**")
 	left Product ("*" | "/" | "%")
-	left Sum ("+" | "-")
+	left Sum ("+" | "-" | "#")
 	left Compare ("==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=")
 	left Logic ("&&" | "||")
 	custom Conditional (condition:last "?" ifTrue:Precedence ":" ifFalse:Conditional)
