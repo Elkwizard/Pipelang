@@ -16,7 +16,8 @@ function highlight(source, palette) {
 	color(/\b[^\W](\w*)\s*(?=\(|=\s*\[)/g, "function");
 	color(/(?<=\|>\s*)[^\W](\w*)\b/g, "function");
 	color(/\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g, "number");
-	color(/\b(real|operator|any|false|true|NaN|Infinity|void|filter|reduce|typeof|is|to|primitive|this|as|type|in)\b/g, "type");
+	color(/\b(true|false|NaN|Infinity|this|no|null|nil|nada|zilch|NA|nullptr)\b/g, "constant");
+	color(/\b(real|operator|any|void|filter|reduce|typeOf|is|to|primitive|as|type|in|toString|if|else|for)\b/g, "type");
 	color(/(['"])((.*?)(\\\\)?(((.*?)[^\\])*?))*?(\1|$)/g, "string");
 	color(/\/\/.*/g, "comment");
 	color(/\/\*.\*\//gs, "comment");

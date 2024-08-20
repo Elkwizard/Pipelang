@@ -6,7 +6,8 @@ const CODE_COLORS = {
 	type: "#B464C8",
 	comment: "#3C4B7F",
 	string: "#E6E696",
-	base: "#8EAFD2"
+	base: "#8EAFD2",
+	constant: "#DB3959"
 };
 
 const OUT_COLORS = {
@@ -16,7 +17,8 @@ const OUT_COLORS = {
 	type: "#943C1E",
 	comment: "#3C4B7F",
 	string: "#AEAE0F",
-	base: "#667A72"
+	base: "#667A72",
+	constant: "#A8371B"
 };
 
 function addColor(hex, text) {
@@ -81,13 +83,14 @@ function exec(command) {
 	try {
 		log(highlight(command, CODE_COLORS));
 		const result = evalStat(command);
-		log(highlight(result ?? "<void>", OUT_COLORS), "» ");
+		log(highlight(result, OUT_COLORS), "» ");
 		if (result !== undefined) currentScope["ans"] = result;
 	} catch (err) {
 		// throw err;
 		const message = `${err}\n${
 			callStack
 				.map(name => `\t at ${name}`)
+				.reverse()
 				.join("\n")
 		}`;
 		log(addColor(THROWN_ERROR, message));

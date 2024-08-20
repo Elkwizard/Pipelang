@@ -22,6 +22,11 @@ evalStat(`
 	real number = 0
 		|> - number
 ];
+in = [
+	any value, type class = value
+		|> typeOf
+		|> convertibleTo class
+];
 reduce = [
 	any() data, any base, operator combine = data
 		|> len
@@ -1658,7 +1663,7 @@ for = [
 			|> effect body
 			|> inc
 			|> for continue inc body
-		] [= void(0)]
+		] [= no]
 ];
 condition = [
 	operator check, operator expr = { check, expr } 
@@ -1678,38 +1683,6 @@ switch = [
 			operator(2)() case = case(0)(1)()
 		]
 ];
-Object = operator(2)();
-Field = operator(2);
-field = [
-	real() name, any value = { [= name], [struct = value] }
-];
-method = [
-	real() name, operator fn = { [= name], fn }
-];
-read = [
-	Object struct, real() name = struct
-		|> filter [
-			Field field = field(0)()
-				|> === name
-		]
-		|> is result
-		|> len
-		|> ? [= result(0)(1)(struct)] [= void(0)]
-];
-
-Vec3 = [real(3) coords = {
-	x: coords(0),
-	y: coords(1),
-	z: coords(2),
-	getNormalized: [= coords
-		|> sumSquared
-		|> sqrt
-		|> reciprocal
-		|> * coords
-		|> Vec3
-	],
-	getCoords: [= coords]
-}];
 
 // strings
 String = real();
@@ -1758,6 +1731,26 @@ replace = [
 		|> is index
 		|> == -1
 		|> ? [str] [str(:index) # replace # str(index + len(find):)]
+];
+
+// objects
+Field = operator(2);
+Object = Field();
+field = [
+	String name, any value = { [= name], [struct = value] }
+];
+method = [
+	String name, operator fn = { [= name], fn }
+];
+read = [
+	Object struct, String name = struct
+		|> filter [
+			Field field = field(0)()
+				|> === name
+		]
+		|> is result
+		|> len
+		|> ? [= result(0)(1)(struct)] [= no]
 ];
 
 // hash table
@@ -1841,6 +1834,15 @@ getValue = [
 		|> len
 		|> ? [= matches(0)(1)()] [= error("Key not found")]
 ];
+
+// horrid
+if = [
+	real condition = [
+		operator ifTrue, else, operator ifFalse = condition
+			|> ? ifTrue ifFalse
+	]
+];
+else = 0;
 `.trim());
 
 const round = num => Math.round(num * 1e3) / 1e3;

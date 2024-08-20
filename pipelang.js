@@ -1,3 +1,11 @@
+class Void {
+	toString() {
+		return "no";
+	}
+}
+
+const VOID = new Void();
+
 class Type {
 	constructor(baseType, dimensions = []) {
 		if (baseType === null) this.ignore = true;
@@ -18,21 +26,20 @@ class Type {
 		return base.ignore ? this.dimensions : this.dimensions.slice(base.dimensions.length);
 	}
 	commonWith(other) {
-		if (this.dimensions.length !== other.dimensions.length) return null;
+		if (other.baseType === "primitive")
+			return this.dimensions.length === 1 ? this : null;
+		
+		if (this.baseType === "primitive")
+			return other.dimensions.length === 1 ? other : null;
 
-		let typeA = this.baseType;
-		let typeB = other.baseType;
+		if (this.dimensions.length !== other.dimensions.length)
+			return null;
 
-		if (typeA !== typeB) {
-			if (typeA === "primitive") typeA = typeB;
-			else if (typeB === "primitive") typeB = typeA;
-			
-			if (typeA !== typeB)
-				return null;
-		}
+		if (this.baseType !== other.baseType)
+			return null;
 
 		return new Type(
-			typeA,
+			this.baseType,
 			this.dimensions.map((d, i) => d !== other.dimensions[i] ? null : d)
 		);
 	}
@@ -123,9 +130,6 @@ class List {
 				if (!commonType)
 					throw new TypeError("List elements must share a common type");
 			}
-			
-			if (commonType.baseType === "void")
-				throw new TypeError("List elements cannot be of type void");
 
 			this.type = commonType.withDimension(elements.length);
 		} else {
@@ -262,7 +266,7 @@ class Operator {
 
 		const exactTypes = actualTypes.every((type, i) => type.equals(operandTypes[i]));
 		if (exactTypes) {
-			const result = this.method.apply(null, args);
+			const result = this.method.apply(null, args) ?? VOID;
 			if (!topLevel && this.tailCall)
 				return tryOperateStackless(result[0], result[1]);
 			return result;
@@ -308,9 +312,6 @@ class Operator {
 }
 
 function typeOf(value) {
-	if (value === undefined)
-		return new Type("void");
-	
 	switch (value.constructor) {
 		case Number:
 			return new Type("real");
@@ -318,6 +319,8 @@ function typeOf(value) {
 			return new Type("operator");
 		case Type:
 			return new Type("type");
+		case Void:
+			return new Type("void");
 		case List:
 			return value.type;
 	}
@@ -595,8 +598,8 @@ function evalStat(command) {
 			make.Reference("?"),
 			make.Arguments([
 				condition,
-				make.Operator(undefined, make.Body([ifTrue])),
-				make.Operator(undefined, make.Body([ifFalse]))
+				make.Operator(undefined, make.Body([ifTrue]).from(ifTrue)),
+				make.Operator(undefined, make.Body([ifFalse]).from(ifTrue))
 			])
 		).from(node);
 	});
@@ -632,13 +635,9 @@ function evalStat(command) {
 currentScope["operator"] = new Type("operator");
 currentScope["real"] = new Type("real");
 currentScope["type"] = new Type("type");
+currentScope["void"] = new Type("void");
 currentScope["any"] = new Type("any");
 currentScope["primitive"] = new Type("primitive");
-
-currentScope["in"] = new Operator([
-	[new Type("any"), "value"],
-	[new Type("type"), "class"]
-], (value, type) => +typeOf(value).equals(type));
 
 currentScope["convertibleTo"] = new Operator([
 	[new Type("type"), "src"],
@@ -648,17 +647,34 @@ currentScope["convertibleTo"] = new Operator([
 currentScope["commonWith"] = new Operator([
 	[new Type("type"), "a"],
 	[new Type("type"), "b"]
-], (a, b) => a.commonWith(b) ?? undefined);
+], (a, b) => {
+	if (
+		a.ignore || b.ignore ||
+		a.baseType === "any" ||
+		b.baseType === "any"
+	) throw new TypeError("Cannot find commonality between non-concrete types");
+	return a.commonWith(b);
+});
 
-currentScope["typeof"] = new Operator([
+currentScope["typeOf"] = new Operator([
 	[new Type("any"), "value"]
 ], value => typeOf(value));
+
+currentScope["dimensions"] = new Operator([
+	[new Type("type"), "class"]
+], type => new List(type.dimensions.map(dim => dim === null ? -1 : dim)));
+
+currentScope["baseOf"] = new Operator([
+	[new Type("type"), "class"]
+], type => new Type(type.baseType));
 
 // built-ins
 currentScope["true"] = 1;
 currentScope["false"] = 0;
 currentScope["NaN"] = NaN;
 currentScope["Infinity"] = Infinity;
+for (const name of ["no", "null", "nil", "nada", "zilch", "NA", "nullptr"])
+	currentScope[name] = VOID;
 
 for (const op of [
 	"+", "-", "*", "/", "%", "**",
@@ -694,16 +710,12 @@ currentScope["?"] = new Operator([
 	[new Type("operator"), "ifFalse"],
 ], (cond, ifTrue, ifFalse) => [cond ? ifTrue : ifFalse, []], true);
 
-currentScope["void"] = new Operator([
-	[new Type("any"), "terminal"]
-], value => void value);
-
 currentScope["filter"] = new Operator([
 	[new Type("any", [null]), "data"],
 	[new Type("operator"), "predicate"],
-], (data, predicate) => new List(data.elements.filter(el => {
-	return !!predicate.operate(el);
-})));
+], (data, predicate) => new List(
+	data.elements.filter(el => !!predicate.operate(el))
+));
 
 currentScope["rangeTo"] = new Operator([
 	[new Type("real"), "length"]
@@ -736,9 +748,7 @@ currentScope["arity"] = new Operator([
 currentScope["call"] = new Operator([
 	[new Type("any", [null]), "args"],
 	[new Type("operator"), "op"]
-], (args, op) => {
-	return op.operate(...args.elements);
-});
+], (args, op) => op.operate(...args.elements));
 
 currentScope["toString"] = new Operator([
 	[new Type("any"), "value"]

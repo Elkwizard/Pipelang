@@ -20,7 +20,7 @@ fb = [
 					], [= "fizz buzz"])
 					condition(multOf(3), [= "fizz"])
 					condition(multOf(5), [= "buzz"])
-					default([= string(n)])
+					default([= toString(n)])
 				}
 				|> effect printString
 				|> to 0
@@ -47,7 +47,7 @@ fb = [
 						[n = !(%(n, 5))],
 						[= "buzz"]
 					)
-					default([= string(n)])
+					default([= toString(n)])
 				}
 				|> capitalize
 				|> effect printString
