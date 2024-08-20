@@ -7,56 +7,34 @@ class Type {
 			this.dimensions = dimensions;
 		}
 	}
-	get simplified() {
-		const element = currentScope[this.baseType];
-		if (element.baseType === this.baseType) return null;
-		return new Type(
-			element.baseType,
-			this.dimensions.concat(element.dimensions)
-		);
-	}
-	get fullySimplified() {
-		let type = this;
-		while (true) {
-			const { simplified } = type;
-			if (!simplified) return type;
-			type = simplified;
-		}
-	}
-	get elementType() {
-		if (!this.dimensions.length) return null;
-		return new Type(this.baseType, this.dimensions.slice(1));
-	}
 	*[Symbol.iterator]() {
 		for (let i = 0; i < this.dimensions.length; i++)
 			yield new Type(this.baseType, this.dimensions.slice(0, i));
 	}
-	compatibleWith(other) {
-		if (other.ignore)
-			return this;
-
-		let type = this;
-		while (type) {
-			if (
-				type.baseType === other.baseType ||
-				(
-					other.baseType === "any" &&
-					type.dimensions.length >= other.dimensions.length
-				)
-			) return type;
-			type = type.simplified;
-		}
-		
-		throw new TypeError(`Type '${this}' is not compatible with '${other}'`);
-	}
-	convertibleTo(other) {
-		return this.fullySimplified.equals(other.fullySimplified);
-	}
 	withDimension(dim) {
-		return new Type(this.baseType, [dim, ...this.dimensions]);
+		return new Type(this.baseType, [...this.dimensions, dim]);
 	}
 	slice(base) {
 		return base.ignore ? this.dimensions : this.dimensions.slice(base.dimensions.length);
+	}
+	commonWith(other) {
+		if (this.dimensions.length !== other.dimensions.length) return null;
+
+		let typeA = this.baseType;
+		let typeB = other.baseType;
+
+		if (typeA !== typeB) {
+			if (typeA === "primitive") typeA = typeB;
+			else if (typeB === "primitive") typeB = typeA;
+			
+			if (typeA !== typeB)
+				return null;
+		}
+
+		return new Type(
+			typeA,
+			this.dimensions.map((d, i) => d !== other.dimensions[i] ? null : d)
+		);
 	}
 	equals(type) {
 		if (type.ignore) return true;
@@ -131,45 +109,31 @@ class Type {
 		return this.ignore ? "ignore" : `${this.baseType}${
 			this.dimensions
 				.map(dim => `(${dim ?? ""})`)
-				.reverse()
 				.join("")
 		}`;
 	}
 }
 
 class List {
-	constructor(elements, type) {
-		// validate
-		// if (!elements.length)
-		// 	throw new RangeError("No elements provided");
-		const types = elements.map(typeOf);
-		for (let i = 1; i < types.length; i++) {
-			if (!types[i - 1].equals(types[i]))
-				throw new TypeError("Not all elements are the same type");
+	constructor(elements) {
+		if (elements.length) {
+			let commonType = typeOf(elements[0]);
+			for (let i = 1; i < elements.length; i++) {
+				commonType = commonType.commonWith(typeOf(elements[i]));
+				if (!commonType)
+					throw new TypeError("List elements must share a common type");
+			}
+			
+			if (commonType.baseType === "void")
+				throw new TypeError("List elements cannot be of type void");
+
+			this.type = commonType.withDimension(elements.length);
+		} else {
+			this.type = new Type("primitive", [0]);
 		}
-		
-		if (types.length > 0 && types[0].baseType === "void")
-			throw new TypeError("List elements cannot be of type void");
 
 		this.elements = elements;
 		this.length = elements.length;
-		this.type = type ?? typeOf(this);
-	}
-	compatibleWith(type) {
-		return this.withType(this.type.compatibleWith(type));
-	}
-	withType(type) {
-		if (type !== this.type) {
-			if (!this.type.convertibleTo(type))
-				throw new TypeError(`Cannot convert from '${this.type}' to '${type}'`);
-			let { elements } = this;
-			const { elementType } = type;
-			if (elementType)
-				elements = elements.map(element => tryCast(element, elementType));
-			const result = new List(elements, type);
-			return result;
-		}
-		return this;
 	}
 	invalidIndex(index) {
 		return index < 0 || index >= this.length;
@@ -190,16 +154,18 @@ class List {
 	}
 	toArray() {
 		if (this.elements.length) {
-			if (this.elements[0] instanceof List) return this.elements.map(element => element.toArray());
+			if (this.elements[0] instanceof List)
+				return this.elements.map(element => element.toArray());
 			else return [...this.elements];
 		} else return [];
 	}
+	asString() {
+		return String.fromCharCode(...this.elements);
+	}
 	toString() {
 		if (this.elements.length) {
-			if (this.type.dimensions.length === 0 && this.type.baseType === "string")
-				return JSON.stringify(String.fromCharCode(...this.elements));
 			// if (this.elements[0] instanceof List) return `${LIST_OPEN}\n${this.elements.map(el => "\t" + el).join(",\n")}\n${LIST_CLOSE}`;
-			return `{ ${this.elements.join(", ")} } as ${this.type}`;
+			return `{ ${this.elements.join(", ")} }`;
 		}
 		return `{ }`;
 	}
@@ -288,12 +254,6 @@ class Operator {
 		if (args.length !== operandTypes.length)
 			throw new TypeError(`No operator '${this.localName}' exists with ${args.length} operand${args.length === 1 ? "" : "s"}`);
 
-		args = args.map((arg, i) => {
-			if (arg instanceof List)
-				return arg.compatibleWith(operandTypes[i]);
-			return arg;
-		});
-
 		const actualTypes = args.map(typeOf);
 
 		const correctTypes = actualTypes.every((type, i) => type.hasElementsOfType(operandTypes[i]));
@@ -359,10 +319,7 @@ function typeOf(value) {
 		case Type:
 			return new Type("type");
 		case List:
-			if (value.type) return value.type;
-			if (!value.elements.length) return new Type("primitive", [0]);
-			const subType = typeOf(value.elements[0]);
-			return new Type(subType.baseType, [...subType.dimensions, value.length]);
+			return value.type;
 	}
 }
 
@@ -468,17 +425,6 @@ function alias(binding, value) {
 	}
 }
 
-function tryCast(base, type) {
-	if (!(base instanceof List)) {
-		const baseType = typeOf(base);
-		if (baseType.equals(type)) return base;
-		throw new TypeError(`Cannot cast primitive type '${baseType}'`);
-	}
-	if (!(type instanceof Type))
-		cannotUse(type, "as a cast target");
-	return base.withType(type);
-}
-
 function evalExpression(expr) {
 	if (expr instanceof AST.FullExpression) {
 		const { base, step } = expr;
@@ -488,8 +434,6 @@ function evalExpression(expr) {
 			alias(step.name, init);
 		} else if (step instanceof AST.Reset) {
 			init = evalExpression(step.value);
-		} else if (step instanceof AST.Cast) {
-			init = tryCast(init, evalExpression(step.type));
 		} else {
 			const args = evalList(step.arguments);
 			if (init !== undefined) args.unshift(init);
@@ -516,11 +460,8 @@ function evalExpression(expr) {
 				.replace(/"/, "\\\"")
 		}"`).charCodeAt();
 
-	if (expr instanceof AST.Reference) {
-		const value = currentScope[expr.name];
-		if (value instanceof Type) return new Type(expr.name);
-		return value;
-	}
+	if (expr instanceof AST.Reference)
+		return currentScope[expr.name];
 
 	if (expr instanceof AST.List)
 		return new List(evalList(expr.elements));
@@ -534,10 +475,6 @@ function evalExpression(expr) {
 		
 		if (step instanceof AST.Overload)
 			return base.withOverload(evalExpression(step.overload));
-
-		if (step instanceof AST.Cast) {
-			return tryCast(base, evalExpression(step.type))
-		}
 
 		if (!(base instanceof List))
 			cannotUse(base, "as a list");
@@ -687,11 +624,6 @@ function evalStat(command) {
 		if (!field.name) field.name = field.key;
 		field.key = evalExpression(make.StringValue(JSON.stringify(field.key)));
 	});
-	ast.transform(AST.StringValue, str => {
-		return make.Expression(
-			str, make.Cast(make.Reference("string"))
-		).from(str);
-	});
 
 	return evalBody(ast);
 }
@@ -703,23 +635,24 @@ currentScope["type"] = new Type("type");
 currentScope["any"] = new Type("any");
 currentScope["primitive"] = new Type("primitive");
 
-currentScope["convertibleTo"] = new Operator([
-	[new Type("type"), "src"],
-	[new Type("type"), "dst"]
-], (a, b) => +a.convertibleTo(b));
-
 currentScope["in"] = new Operator([
 	[new Type("any"), "value"],
 	[new Type("type"), "class"]
-], (value, type) => +typeOf(value).convertibleTo(type));
+], (value, type) => +typeOf(value).equals(type));
+
+currentScope["convertibleTo"] = new Operator([
+	[new Type("type"), "src"],
+	[new Type("type"), "dst"]
+], (src, dst) => +src.equals(dst));
+
+currentScope["commonWith"] = new Operator([
+	[new Type("type"), "a"],
+	[new Type("type"), "b"]
+], (a, b) => a.commonWith(b) ?? undefined);
 
 currentScope["typeof"] = new Operator([
 	[new Type("any"), "value"]
 ], value => typeOf(value));
-
-currentScope["simplify"] = new Operator([
-	[new Type("type"), "class"]
-], type => type.fullySimplified);
 
 // built-ins
 currentScope["true"] = 1;
@@ -752,7 +685,7 @@ for (const key of Object.getOwnPropertyNames(Math)) {
 currentScope["error"] = new Operator([
 	[new Type("real", [null]), "message"]
 ], string => {
-	throw new Error(String.fromCharCode(...string.elements));
+	throw new Error(string.asString());
 });
 
 currentScope["?"] = new Operator([

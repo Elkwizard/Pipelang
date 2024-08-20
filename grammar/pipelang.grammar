@@ -21,7 +21,6 @@ Index = "(" start:Precedence? ":" end:Precedence? ")"
 Arguments = "(" arguments:Precedence[","] ")"
 Property = "." key:identifier
 Overload = "&" overload:Expression
-Cast = "as" type:Expression
 Suffix = Arguments | Index | Property | Overload | Cast
 Expression = base:Expression step:Suffix | BaseExpression
 
@@ -45,7 +44,7 @@ WrappedName = "[" name:Name "]"
 Name = WrappedName | ListDestructure | ObjectDestructure | identifier
 Alias = "is" name:Name
 Reset = "to" value:Expression
-Step = Alias | Reset | Cast | Call
+Step = Alias | Reset | Call
 InitialCall = operator:Expression arguments:Expression+
 FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
 

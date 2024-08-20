@@ -368,7 +368,7 @@ stdDev2XBar = [
 		|> stdDevSum
 ];
 stdDevB = [
-	real()(2) points = points
+	real(2)() points = points
 		|> stdDevResiduals linReg(points)
 		|> is se
 		|> to points
@@ -1316,7 +1316,7 @@ residual = [
 		|> + last(point)
 ];
 stdDevResiduals = [
-	real()(2) points, operator model = points
+	real(2)() points, operator model = points
 		|> residual model
 		|> sumSquared
 		|> / -(len(points), 2)
@@ -1359,7 +1359,7 @@ rSquaredAdj = [
 		|> complement
 ];
 residualPlot = [
-	real()(2) points, operator model = points
+	real(2)() points, operator model = points
 		|> [real(2) point = { point(0), residual(point, model) }]
 		|> scatterPlot
 ];
@@ -1385,7 +1385,7 @@ unlogit = [
 		|> oddsToProb
 ];
 logitReg = [
-	real()(2) points = points
+	real(2)() points = points
 		|> [real(2) point = { point(0), logit(point(1)) }]
 		|> linReg
 		|> [
@@ -1670,14 +1670,16 @@ default = [
 	operator expr = { [value = true], expr }
 ];
 switch = [
-	value, operator()(2) caseExprs = caseExprs
+	value, operator(2)() caseExprs = caseExprs
 		|> filter [
 			operator(2) case = case(0)(value)
 		]
 		|> [
-			operator()(2) case = case(0)(1)()
+			operator(2)() case = case(0)(1)()
 		]
 ];
+Object = operator(2)();
+Field = operator(2);
 field = [
 	real() name, any value = { [= name], [struct = value] }
 ];
@@ -1685,9 +1687,9 @@ method = [
 	real() name, operator fn = { [= name], fn }
 ];
 read = [
-	operator()(2) struct, real() name = struct
+	Object struct, real() name = struct
 		|> filter [
-			operator(2) field = field(0)()
+			Field field = field(0)()
 				|> === name
 		]
 		|> is result
@@ -1710,13 +1712,9 @@ Vec3 = [real(3) coords = {
 }];
 
 // strings
-string = real();
+String = real();
 
 toUpperCase = [
-	string str = str
-		|> toUpperCase
-		|> as string
-] & [
 	real ch = ch
 		|> within "az"
 		|> ? [ch - 32] [ch]
@@ -1727,12 +1725,12 @@ toLowerCase = [
 		|> ? [ch + 32] [ch]
 ];
 capitalize = [
-	string str = { str(0) }
+	String str = { str(0) }
 		|> toUpperCase
 		|> concat str(1:)
 ];
 split = [
-	string str, string delim = delim
+	String str, String delim = delim
 		|> findSeqIn str
 		|> is index
 		|> == -1
@@ -1741,9 +1739,9 @@ split = [
 		]
 ];
 join = [
-	string() strings, string delim = strings
+	String() strings, String delim = strings
 		|> reduce "" [
-			string acc, string element = acc
+			String acc, String element = acc
 				|> len
 				|> ? [= acc
 					|> concat delim
@@ -1752,7 +1750,7 @@ join = [
 		]
 ];
 replaceAll = [
-	string str, string find, string replace = str
+	String str, String find, String replace = str
 		|> split find
 		|> join replace
 ];
@@ -1784,7 +1782,7 @@ hash = [
 ];
 
 HashTable = [
-	operator()(2) pairs = pairs
+	operator(2)() pairs = pairs
 		|> len
 		|> * 1.25
 		|> ceil
@@ -1809,7 +1807,7 @@ HashTable = [
 				|> len
 				|> ? [= pairs
 					|> [operator(3) pair = pair(1:)]
-					|> [operator()(2) pairs = [= pairs]]
+					|> [operator(2)() pairs = [= pairs]]
 				] [= [= { }]]
 		]
 		|> is hashTable
@@ -1899,8 +1897,9 @@ currentScope["linReg"] = new Operator([
 
 exec(`
 
-Object = operator()(2);
-object = { x: 5, y: 8 } as Object;
+Object = operator(2)();
+object = { x: 5, y: 8 };
+[Object o = o.x](object);
 
 `);
 
