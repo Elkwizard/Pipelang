@@ -66,10 +66,6 @@ currentScope["printMatrix"] = new Operator([
 	log(`┌${sp.repeat(totalWidth)}┐<br>` + strings.map(row => `│${sp.repeat(spacing)}${row.map((v, i) => pad(highlight(v, OUT_COLORS), v.length, columnWidths[i])).join(sp.repeat(spacing))}${sp.repeat(spacing)}│`).join("<br>") + `<br>└${sp.repeat(totalWidth)}┘`);
 });
 
-currentScope["typeof"] = new Operator([
-	[new Type(null), "value"]
-], value => log(highlight(typeOf(value), OUT_COLORS)));
-
 currentScope["clear"] = new Operator([], () => {
 	clear();
 	log("workspace cleared");

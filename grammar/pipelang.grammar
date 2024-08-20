@@ -13,9 +13,7 @@ CharValue = value:char
 Value = NumberValue | StringValue | CharValue
 Field = key:identifier ":" value:Precedence
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
-Dimension = "(" length:number? ")"
-Type = base:("any" | "real" | "operator" | "primitive") dimensions:Dimension*
-Parameter = type:Type? name:Name
+Parameter = type:Expression? name:Name
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
 Nested = "#"? "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
@@ -23,7 +21,8 @@ Index = "(" start:Precedence? ":" end:Precedence? ")"
 Arguments = "(" arguments:Precedence[","] ")"
 Property = "." key:identifier
 Overload = "&" overload:Expression
-Suffix = Arguments | Index | Property | Overload
+Cast = "as" type:Expression
+Suffix = Arguments | Index | Property | Overload | Cast
 Expression = base:Expression step:Suffix | BaseExpression
 
 // precedence expressions
@@ -46,7 +45,7 @@ WrappedName = "[" name:Name "]"
 Name = WrappedName | ListDestructure | ObjectDestructure | identifier
 Alias = "is" name:Name
 Reset = "to" value:Expression
-Step = Alias | Reset | Call
+Step = Alias | Reset | Cast | Call
 InitialCall = operator:Expression arguments:Expression+
 FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
 

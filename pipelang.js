@@ -7,9 +7,53 @@ class Type {
 			this.dimensions = dimensions;
 		}
 	}
+	get simplified() {
+		const element = currentScope[this.baseType];
+		if (element.baseType === this.baseType) return null;
+		return new Type(
+			element.baseType,
+			this.dimensions.concat(element.dimensions)
+		);
+	}
+	get fullySimplified() {
+		let type = this;
+		while (true) {
+			const { simplified } = type;
+			if (!simplified) return type;
+			type = simplified;
+		}
+	}
+	get elementType() {
+		if (!this.dimensions.length) return null;
+		return new Type(this.baseType, this.dimensions.slice(1));
+	}
 	*[Symbol.iterator]() {
 		for (let i = 0; i < this.dimensions.length; i++)
 			yield new Type(this.baseType, this.dimensions.slice(0, i));
+	}
+	compatibleWith(other) {
+		if (other.ignore)
+			return this;
+
+		let type = this;
+		while (type) {
+			if (
+				type.baseType === other.baseType ||
+				(
+					other.baseType === "any" &&
+					type.dimensions.length >= other.dimensions.length
+				)
+			) return type;
+			type = type.simplified;
+		}
+		
+		throw new TypeError(`Type '${this}' is not compatible with '${other}'`);
+	}
+	convertibleTo(other) {
+		return this.fullySimplified.equals(other.fullySimplified);
+	}
+	withDimension(dim) {
+		return new Type(this.baseType, [dim, ...this.dimensions]);
 	}
 	slice(base) {
 		return base.ignore ? this.dimensions : this.dimensions.slice(base.dimensions.length);
@@ -24,7 +68,7 @@ class Type {
 				const thisDim = this.dimensions[this.dimensions.length - 1 - i];
 				const typeDim = type.dimensions[type.dimensions.length - 1 - i];
 			
-				if (thisDim !== null && typeDim !== null && thisDim !== typeDim)
+				if (thisDim !== typeDim && typeDim !== null)
 					return false;
 			}
 
@@ -43,8 +87,8 @@ class Type {
 			const typeDim = type.dimensions[i];
 			const thisDim = this.dimensions[i];
 			
-			if (typeDim === null || thisDim === null) continue;
-			if (typeDim !== thisDim) return false;
+			if (thisDim !== typeDim && typeDim !== null)
+				return false;
 		}
 		return true;
 	}
@@ -58,7 +102,7 @@ class Type {
 				for (let j = 0; j < type.dimensions.length; j++) {
 					const typeDim = type.dimensions[i + j];
 					const thisDim = this.dimensions[j];
-					if (typeDim !== null && thisDim !== null && typeDim !== thisDim)
+					if (thisDim !== typeDim && typeDim !== null)
 						continue offsetLoop;
 				}
 
@@ -78,7 +122,7 @@ class Type {
 			const typeDim = type.dimensions[i];
 			const thisDim = this.dimensions[i];
 			
-			if (typeDim !== null && thisDim !== null && typeDim !== thisDim)
+			if (thisDim !== typeDim && typeDim !== null)
 				return false;
 		}
 		return true;
@@ -94,13 +138,13 @@ class Type {
 }
 
 class List {
-	constructor(elements) {
+	constructor(elements, type) {
 		// validate
 		// if (!elements.length)
 		// 	throw new RangeError("No elements provided");
 		const types = elements.map(typeOf);
-		for (let i = 0; i < types.length - 1; i++) {
-			if (!types[i].equals(types[i + 1]))
+		for (let i = 1; i < types.length; i++) {
+			if (!types[i - 1].equals(types[i]))
 				throw new TypeError("Not all elements are the same type");
 		}
 		
@@ -109,6 +153,23 @@ class List {
 
 		this.elements = elements;
 		this.length = elements.length;
+		this.type = type ?? typeOf(this);
+	}
+	compatibleWith(type) {
+		return this.withType(this.type.compatibleWith(type));
+	}
+	withType(type) {
+		if (type !== this.type) {
+			if (!this.type.convertibleTo(type))
+				throw new TypeError(`Cannot convert from '${this.type}' to '${type}'`);
+			let { elements } = this;
+			const { elementType } = type;
+			if (elementType)
+				elements = elements.map(element => tryCast(element, elementType));
+			const result = new List(elements, type);
+			return result;
+		}
+		return this;
 	}
 	invalidIndex(index) {
 		return index < 0 || index >= this.length;
@@ -135,8 +196,10 @@ class List {
 	}
 	toString() {
 		if (this.elements.length) {
+			if (this.type.dimensions.length === 0 && this.type.baseType === "string")
+				return JSON.stringify(String.fromCharCode(...this.elements));
 			// if (this.elements[0] instanceof List) return `${LIST_OPEN}\n${this.elements.map(el => "\t" + el).join(",\n")}\n${LIST_CLOSE}`;
-			return `{ ${this.elements.join(", ")} }`;
+			return `{ ${this.elements.join(", ")} } as ${this.type}`;
 		}
 		return `{ }`;
 	}
@@ -221,10 +284,17 @@ class Operator {
 	}
 	baseOperate(args, topLevel = false) {
 		const { operandTypes } = this;
-		const actualTypes = args.map(typeOf);
 
-		if (actualTypes.length !== operandTypes.length)
-			throw new OperandError(this.localName, actualTypes);
+		if (args.length !== operandTypes.length)
+			throw new TypeError(`No operator '${this.localName}' exists with ${args.length} operand${args.length === 1 ? "" : "s"}`);
+
+		args = args.map((arg, i) => {
+			if (arg instanceof List)
+				return arg.compatibleWith(operandTypes[i]);
+			return arg;
+		});
+
+		const actualTypes = args.map(typeOf);
 
 		const correctTypes = actualTypes.every((type, i) => type.hasElementsOfType(operandTypes[i]));
 		if (!correctTypes)
@@ -286,7 +356,10 @@ function typeOf(value) {
 			return new Type("real");
 		case Operator:
 			return new Type("operator");
+		case Type:
+			return new Type("type");
 		case List:
+			if (value.type) return value.type;
 			if (!value.elements.length) return new Type("primitive", [0]);
 			const subType = typeOf(value.elements[0]);
 			return new Type(subType.baseType, [...subType.dimensions, value.length]);
@@ -328,6 +401,10 @@ function resetScopes() {
 
 resetScopes();
 
+function cannotUse(value, message) {
+	throw new TypeError(`Cannot use type '${typeOf(value)}' ${message}`);
+}
+
 function tryOperate(operator, args) {
 	const { length } = callStack;
 	const result = tryOperateStackless(operator, args);
@@ -342,10 +419,22 @@ function tryOperateStackless(operator, args) {
 			operator = operator.arrayOperate(args);
 			if (!Array.isArray(operator)) return operator;
 			[operator, args] = operator;
+		} else if (operator instanceof Type && args.length <= 1) {
+			if (!args.length) {
+				return operator.withDimension(null);
+			} else if (typeof args[0] === "number") {
+				return operator.withDimension(args[0]);
+			} else {
+				cannotUse(args[0], "as a type dimension");
+			}
 		} else if (operator instanceof List && args.length === 1) {
-			return operator.at(args[0]);
+			if (typeof args[0] === "number") {
+				return operator.at(args[0]);
+			} else {
+				cannotUse(args[0], "as an index");
+			}
 		} else {
-			throw new TypeError(`Cannot use type '${typeOf(operator)}' as an operator`);
+			cannotUse(operator, "as an operator");
 		}
 	}
 }
@@ -370,13 +459,24 @@ function alias(binding, value) {
 			alias(name, tryOperate(read, [value, key]));
 	} else if (binding instanceof AST.ListDestructure) {
 		if (!(value instanceof List))
-			throw new TypeError(`Cannot index into type '${typeOf(value)}'`);
+			cannotUse(value, "as a list");
 
 		for (let i = 0; i < binding.names.length; i++)
 			alias(binding.names[i], value.at(i))
 	} else {
 		currentScope[binding] = value;
 	}
+}
+
+function tryCast(base, type) {
+	if (!(base instanceof List)) {
+		const baseType = typeOf(base);
+		if (baseType.equals(type)) return base;
+		throw new TypeError(`Cannot cast primitive type '${baseType}'`);
+	}
+	if (!(type instanceof Type))
+		cannotUse(type, "as a cast target");
+	return base.withType(type);
 }
 
 function evalExpression(expr) {
@@ -388,6 +488,8 @@ function evalExpression(expr) {
 			alias(step.name, init);
 		} else if (step instanceof AST.Reset) {
 			init = evalExpression(step.value);
+		} else if (step instanceof AST.Cast) {
+			init = tryCast(init, evalExpression(step.type));
 		} else {
 			const args = evalList(step.arguments);
 			if (init !== undefined) args.unshift(init);
@@ -414,8 +516,11 @@ function evalExpression(expr) {
 				.replace(/"/, "\\\"")
 		}"`).charCodeAt();
 
-	if (expr instanceof AST.Reference)
-		return currentScope[expr.name];
+	if (expr instanceof AST.Reference) {
+		const value = currentScope[expr.name];
+		if (value instanceof Type) return new Type(expr.name);
+		return value;
+	}
 
 	if (expr instanceof AST.List)
 		return new List(evalList(expr.elements));
@@ -430,8 +535,12 @@ function evalExpression(expr) {
 		if (step instanceof AST.Overload)
 			return base.withOverload(evalExpression(step.overload));
 
+		if (step instanceof AST.Cast) {
+			return tryCast(base, evalExpression(step.type))
+		}
+
 		if (!(base instanceof List))
-			throw new TypeError(`Cannot index into type '${typeOf(base)}'`);
+			cannotUse(base, "as a list");
 
 		let { start, end } = step;
 		if (start) start = evalExpression(start);
@@ -448,12 +557,10 @@ function evalExpression(expr) {
 		} else {
 			parameters = (expr.parameters ?? []).map(parameter => {
 				let type;
-				if ("type" in parameter) {
-					const base = parameter.type.base;
-					const dimensions = (parameter.type.dimensions ?? [])
-						.map(dim => "length" in dim ? +dim.length : null)
-						.reverse();
-					type = new Type(base, dimensions);
+				if (parameter.type) {
+					type = evalExpression(parameter.type);
+					if (!(type instanceof Type))
+						cannotUse(type, "as a operand type");
 				} else type = new Type(null);
 				return [type, parameter.name];
 			});
@@ -476,8 +583,8 @@ function evalExpression(expr) {
 			const returnValue = evalBody(expr.body);
 			
 			const result = tailCall ? [
-					evalExpression(tailCall.operator),
-					[returnValue, ...evalList(tailCall.arguments)]
+				evalExpression(tailCall.operator),
+				[returnValue, ...evalList(tailCall.arguments)]
 			] : returnValue;
 
 			scopes = oldScopes;
@@ -580,9 +687,39 @@ function evalStat(command) {
 		if (!field.name) field.name = field.key;
 		field.key = evalExpression(make.StringValue(JSON.stringify(field.key)));
 	});
+	ast.transform(AST.StringValue, str => {
+		return make.Expression(
+			str, make.Cast(make.Reference("string"))
+		).from(str);
+	});
 
 	return evalBody(ast);
 }
+
+// types
+currentScope["operator"] = new Type("operator");
+currentScope["real"] = new Type("real");
+currentScope["type"] = new Type("type");
+currentScope["any"] = new Type("any");
+currentScope["primitive"] = new Type("primitive");
+
+currentScope["convertibleTo"] = new Operator([
+	[new Type("type"), "src"],
+	[new Type("type"), "dst"]
+], (a, b) => +a.convertibleTo(b));
+
+currentScope["in"] = new Operator([
+	[new Type("any"), "value"],
+	[new Type("type"), "class"]
+], (value, type) => +typeOf(value).convertibleTo(type));
+
+currentScope["typeof"] = new Operator([
+	[new Type("any"), "value"]
+], value => typeOf(value));
+
+currentScope["simplify"] = new Operator([
+	[new Type("type"), "class"]
+], type => type.fullySimplified);
 
 // built-ins
 currentScope["true"] = 1;
@@ -612,10 +749,6 @@ for (const key of Object.getOwnPropertyNames(Math)) {
 }
 
 // required for turing-completeness (-ish)
-currentScope["primitive"] = new Operator([
-	[new Type("any"), "value"]
-], value => +!(value instanceof List));
-
 currentScope["error"] = new Operator([
 	[new Type("real", [null]), "message"]
 ], string => {
@@ -661,10 +794,7 @@ currentScope["isFinite"] = new Operator([
 
 currentScope["len"] = new Operator([
 	[new Type("any", [null]), "list"]	
-], list => {
-	if (list instanceof List) return list.elements.length;
-	throw new TypeError("Cannot find length of non-list");
-});
+], list => list.elements.length);
 
 currentScope["arity"] = new Operator([
 	[new Type("operator"), "op"]
@@ -677,7 +807,7 @@ currentScope["call"] = new Operator([
 	return op.operate(...args.elements);
 });
 
-currentScope["string"] = new Operator([
+currentScope["toString"] = new Operator([
 	[new Type("any"), "value"]
 ], value => {
 	const charCodes = value

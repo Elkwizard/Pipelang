@@ -1,6 +1,5 @@
-
-// stdlib
 evalStat(`
+// stdlib
 ! = [
 	real condition = condition
 		|> == false
@@ -92,7 +91,7 @@ all = [
 	real() conditions = conditions
 		|> reduce true &&
 ];
-any = [
+some = [
 	real() conditions = conditions
 		|> reduce false ||
 ];
@@ -183,14 +182,32 @@ ratio = [
 	real(2) pair = pair(0)
 		|> / pair(1)
 ];
-findIn = [
+findAllIn = [
 	any value, any() list = list
 		|> len
 		|> rangeTo
-		|> filter [real index = === list(index) value]
-		|> is values
+		|> filter [list(i) === value]
+];
+findAllSeqIn = [
+	any() seq, any() list = seq(0)
+		|> findAllIn list
+		|> filter [i <= len(list) - len(seq)]
+		|> filter [list(i:i + len(seq)) === seq]
+];
+_maybeFirst = [
+	values, else = values
 		|> len
-		|> ? [= values(0)] [= -1]
+		|> ? [= values(0)] else
+];
+findIn = [
+	any value, any() list = value
+		|> findAllIn list
+		|> _maybeFirst [= -1]
+];
+findSeqIn = [
+	any() seq, any() list = seq
+		|> findAllSeqIn list
+		|> _maybeFirst [= -1]
 ];
 ln = log;
 log = log10;
@@ -236,17 +253,15 @@ randInt = [
 axis = [
 	real() vector, real n = vector(n)
 ];
-whereIn = [
-	any value, any() list = list
-		|> len
-		|> rangeTo
-		|> filter [real index = == list(index) value]
-		|> is values
-		|> len
-		|> ? [= values(0)] [= -1]
-];
 nthOf = [
 	real n, any() list = list(n)
+];
+sliceOf = [
+	real(2) n, any() list = list(n(0):n(1))
+] & [
+	real(1) n, any() list = list(n(0):)
+] & [
+	real n, any() list = list(n:)
 ];
 head = [
 	any() list, real count = list(:count)
@@ -1023,7 +1038,7 @@ baseIndicesOf = [
 		]
 		|> is indices
 		|> to structure(0)
-		|> primitive
+		|> in primitive
 		|> ? [= indices] [= indices
 			|> map [
 				inxs = inxs
@@ -1695,31 +1710,51 @@ Vec3 = [real(3) coords = {
 }];
 
 // strings
+string = real();
+
 toUpperCase = [
+	string str = str
+		|> toUpperCase
+		|> as string
+] & [
 	real ch = ch
 		|> within "az"
-		|> ? [= ch
-			|> - 32
-		] [= ch]
+		|> ? [ch - 32] [ch]
 ];
 toLowerCase = [
 	real ch = ch
 		|> within "AZ"
-		|> ? [= ch
-			|> + 32
-		] [= ch]
+		|> ? [ch + 32] [ch]
 ];
 capitalize = [
-	real() str = { str(0) }
+	string str = { str(0) }
 		|> toUpperCase
 		|> concat str(1:)
 ];
-buildString = [
-	any() data, operator str = data
-		|> reduce "" [
-			real() progress, any element = progress
-				|> concat str(element)
+split = [
+	string str, string delim = delim
+		|> findSeqIn str
+		|> is index
+		|> == -1
+		|> ? [{ str }] [= { str(:index) }
+			|> concat split(str(index + len(delim):), delim)
 		]
+];
+join = [
+	string() strings, string delim = strings
+		|> reduce "" [
+			string acc, string element = acc
+				|> len
+				|> ? [= acc
+					|> concat delim
+					|> concat element
+				] [element]
+		]
+];
+replaceAll = [
+	string str, string find, string replace = str
+		|> split find
+		|> join replace
 ];
 
 // hash table
@@ -1729,7 +1764,7 @@ Entry = [
 
 hash = [
 	any key = key
-		|> primitive
+		|> in primitive
 		|> ? [= key
 			|> + 29837162.12376
 			|> * 394872.12398
@@ -1861,6 +1896,13 @@ currentScope["linReg"] = new Operator([
 		return operator;
 	}
 });
+
+exec(`
+
+Object = operator()(2);
+object = { x: 5, y: 8 } as Object;
+
+`);
 
 // y = 1.4 + 0.33*x_1 + 0.16*x_2 + e
 
