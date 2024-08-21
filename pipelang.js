@@ -20,6 +20,12 @@ class Type {
 			yield new Type(this.baseType, this.dimensions.slice(0, i));
 	}
 	withDimension(dim) {
+		if (dim !== null) {
+			if (typeof dim !== "number")
+				cannotUse(dim, "as a dimension");
+			if (!Number.isInteger(dim))
+				throw new TypeError(`Cannot use non-integer dimension '${dim}'`);
+		}
 		return new Type(this.baseType, [...this.dimensions, dim]);
 	}
 	slice(base) {
@@ -647,6 +653,7 @@ currentScope["real"] = new Type("real");
 currentScope["type"] = new Type("type");
 currentScope["void"] = new Type("void");
 currentScope["any"] = new Type("any");
+currentScope["ignore"] = new Type(null);
 currentScope["primitive"] = new Type("primitive");
 
 currentScope["convertibleTo"] = new Operator([

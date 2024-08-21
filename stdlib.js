@@ -1,5 +1,11 @@
 evalStat(`
 // stdlib
+createType = [
+	type baseType, real() dims = dims
+		|> reduce baseType [
+			type acc, real dim = (dim == -1 ? acc() : acc(dim))
+		]
+];
 ! = [
 	real condition = condition
 		|> == false
@@ -1908,6 +1914,23 @@ currentScope["linReg"] = new Operator([
 		return operator;
 	}
 });
+
+// exec(`
+	
+// addMultiplier = [
+// 	operator base = base
+// 			|> operands
+// 			|> push real
+// 			|> createOperator [
+// 				operator() ops = ops(:-1)
+// 					|> unwrapCall base
+// 					|> * ops(-1)()
+// 			];
+// ];
+
+// createType(real, { 5, 3, 2, -1, 8 });
+
+// `);
 
 // y = 1.4 + 0.33*x_1 + 0.16*x_2 + e
 
