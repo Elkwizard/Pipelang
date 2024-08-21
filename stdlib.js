@@ -27,6 +27,11 @@ in = [
 		|> typeOf
 		|> convertibleTo class
 ];
+indices = [
+	any() list = list
+		|> len
+		|> rangeTo
+];
 reduce = [
 	any() data, any base, operator combine = data
 		|> len
@@ -52,8 +57,7 @@ zip = [
 ];
 swap = [
 	any() list, real i, real j = list
-		|> len
-		|> rangeTo
+		|> indices
 		|> [
 			real index = index
 				|> == { i, j }
@@ -73,14 +77,12 @@ flat = [
 ];
 fill = [
 	any() list, operator generate = list
-		|> len
-		|> rangeTo
+		|> indices
 		|> [real index = generate()]
 ];
 map = [
 	any() list, operator map = list
-		|> len
-		|> rangeTo
+		|> indices
 		|> [
 			real index = index
 				|> nthOf list
@@ -102,29 +104,19 @@ some = [
 ];
 reverse = [
 	any() list = list
-		|> len
-		|> is length
-		|> rangeTo
-		|> [
-			real index = length
-				|> - length
-				|> - 1
-				|> nthOf list
-		]
+		|> indices
+		|> + 1
+		|> map [list(-i)]
 ];
 concat = [
 	any() a, any() b = len(a)
 		|> + len(b)
 		|> rangeTo
-		|> [
-			real i = i
-				|> < len(a)
-				|> ? [= a(i)
-				] [= i
-					|> - len(a)
-					|> nthOf b
-				]
-		]
+		|> map [i < len(a) ? a(i) : b(i - len(a))]
+];
+push = [
+	any() a, any b = a
+		|> concat { b }
 ];
 padStart = [
 	any() list, real size, fillEl = size
@@ -189,8 +181,7 @@ ratio = [
 ];
 findAllIn = [
 	any value, any() list = list
-		|> len
-		|> rangeTo
+		|> indices
 		|> filter [list(i) === value]
 ];
 findAllSeqIn = [
@@ -1035,8 +1026,7 @@ determinant = [
 ];
 baseIndicesOf = [
 	structure, real() priorIndices = structure
-		|> len
-		|> rangeTo
+		|> indices
 		|> [
 			real inx = priorIndices
 				|> concat { inx }
@@ -1109,8 +1099,7 @@ swapRows = [
 ];
 addRowMultiple = [
 	real()() mat, real dst, real src, real factor = mat
-		|> len
-		|> rangeTo
+		|> indices
 		|> [
 			real index = index
 				|> == dst
@@ -1131,8 +1120,7 @@ _echelonColumn = [
 		|> nthOf mat
 		|> is target
 		|> to mat
-		|> len
-		|> rangeTo
+		|> indices
 		|> [
 			real index = index
 				|> == targetIndex
@@ -1261,6 +1249,25 @@ range = [
 apply = [
 	arg, operator fn = arg
 		|> fn
+];
+call = [
+	any() args, operator op = args
+		|> map wrap
+		|> unwrapCall op
+];
+on = [
+	operator op, any() args = args
+		|> call op
+];
+unwrapOn = [
+	operator op, operator() args = args
+		|> unwrapCall op
+];
+wrap = [
+	value = [value]
+];
+unwrap = [
+	operator box = box()
 ];
 IQROutliers = [
 	real() list = list
@@ -1691,12 +1698,12 @@ String = real();
 toUpperCase = [
 	real ch = ch
 		|> within "az"
-		|> ? [ch - 32] [ch]
+		|> ? [= ch - 32] [= ch]
 ];
 toLowerCase = [
 	real ch = ch
 		|> within "AZ"
-		|> ? [ch + 32] [ch]
+		|> ? [= ch + 32] [= ch]
 ];
 capitalize = [
 	String str = { str(0) }
@@ -1708,7 +1715,7 @@ split = [
 		|> findSeqIn str
 		|> is index
 		|> == -1
-		|> ? [{ str }] [= { str(:index) }
+		|> ? [= { str }] [= { str(:index) }
 			|> concat split(str(index + len(delim):), delim)
 		]
 ];
@@ -1717,7 +1724,7 @@ join = [
 		|> reduce "" [
 			String acc, String element = acc
 				|> len
-				|> ? [acc # delim # element] [element]
+				|> ? [= acc # delim # element] [= element]
 		]
 ];
 replaceAll = [
@@ -1730,7 +1737,7 @@ replace = [
 		|> findSeqIn str
 		|> is index
 		|> == -1
-		|> ? [str] [str(:index) # replace # str(index + len(find):)]
+		|> ? [= str] [= str(:index) # replace # str(index + len(find):)]
 ];
 
 // objects

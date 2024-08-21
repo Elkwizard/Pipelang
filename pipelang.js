@@ -142,9 +142,12 @@ class List {
 	invalidIndex(index) {
 		return index < 0 || index >= this.length;
 	}
+	wrapIndex(index) {
+		return index < 0 ? index + this.length : index;
+	}
 	slice(start = 0, end = this.length) {
-		if (start < 0) start += this.length;
-		if (end < 0) end += this.length;
+		start = this.wrapIndex(start);
+		end = this.wrapIndex(end);
 		if (start === end) {
 			if (start < 0 || start > this.length) throw new RangeError(`Range ${start}:${end} is out of bounds for type '${typeOf(this)}'`);
 			return new List([]);
@@ -153,6 +156,7 @@ class List {
 		return new List(this.elements.slice(start, end));
 	}
 	at(index) {
+		index = this.wrapIndex(index);
 		if (this.invalidIndex(index)) throw new RangeError(`Index '${index}' is out of bounds for type '${typeOf(this)}'`);
 		return this.elements[index];
 	}
@@ -308,6 +312,12 @@ class Operator {
 		}).join(", ")} = ${this.sourceCode}]`
 		if (this.overload) normalized += " & " + this.overload;
 		return normalized;
+	}
+	static unwrap(value) {
+		return tryOperate(value, []);
+	}
+	static wrap(value) {
+		return new Operator([], () => value);
 	}
 }
 
@@ -668,6 +678,20 @@ currentScope["baseOf"] = new Operator([
 	[new Type("type"), "class"]
 ], type => new Type(type.baseType));
 
+currentScope["operands"] = new Operator([
+	[new Type("operator"), "op"]
+], op => new List(op.operandTypes));
+
+currentScope["createOperator"] = new Operator([
+	[new Type("type", [null]), "operandTypes"],
+	[new Type("operator"), "body"]
+], (args, body) => {
+	return new Operator(
+		args.elements.map((type, i) => [type, `_${i + 1}`]),
+		(...args) => body.operate(new List(args.map(Operator.wrap)))
+	);
+});
+
 // built-ins
 currentScope["true"] = 1;
 currentScope["false"] = 0;
@@ -745,10 +769,10 @@ currentScope["arity"] = new Operator([
 	[new Type("operator"), "op"]
 ], op => op.operands.length);
 
-currentScope["call"] = new Operator([
-	[new Type("any", [null]), "args"],
+currentScope["unwrapCall"] = new Operator([
+	[new Type("operator", [null]), "args"],
 	[new Type("operator"), "op"]
-], (args, op) => op.operate(...args.elements));
+], (args, op) => op.operate(...args.elements.map(Operator.unwrap)));
 
 currentScope["toString"] = new Operator([
 	[new Type("any"), "value"]

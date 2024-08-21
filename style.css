@@ -69,6 +69,13 @@ body {
 	border-bottom: 1px gray solid;
 }
 
+#commandHighlight::after {
+	content: "";
+	display: inline-block;
+	height: 1em;
+	margin-top: -0.5em;
+}
+
 #commandContainer {
 	display: block;
 	width: 100%;
@@ -84,6 +91,7 @@ body {
 	z-index: 0;
 	color: transparent;
 	caret-color: var(--secondary);
+	resize: none;
 }
 
 #command::selection {

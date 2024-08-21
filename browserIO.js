@@ -35,7 +35,7 @@ function applyFormat(text) {
 		}
 
 		return `<span style="${key}: ${color}">`;
-	});
+	}).replace(/\n/g, "<br>");
 }
 
 function log(text) {
@@ -67,25 +67,76 @@ function logElement(element) {
 
 	const syncHighlight = () => {
 		commandHighlight.innerHTML = applyFormat(highlight(command.value, CODE_COLORS));
-	}
+		command.style.height = getComputedStyle(commandHighlight).height;
+		command.scrollIntoView();
+	};
 
-	command.addEventListener("keydown", ({ key }) => {
-		if (key === "ArrowDown") {
+	const insertAtSelection = (str, remove = 0) => {
+		const start = command.selectionStart;
+		const end = command.selectionEnd;
+		const { value } = command;
+		command.value = value.slice(0, start - remove) + str + value.slice(end);
+		command.selectionStart = command.selectionEnd = end + str.length;
+	};
+
+	command.addEventListener("keydown", event => {
+		const { key, shiftKey } = event;
+
+		const lineIndex = command.value.slice(0, command.selectionStart).match(/\n/g)?.length ?? 0;
+		const lines = command.value.split("\n");
+		
+		if (key === "ArrowDown" && lineIndex === lines.length - 1) {
+			event.preventDefault();
 			selected = Math.max(selected - 1, 0);
 			command.value = statements[selected];
 			syncHighlight();
 		}
-		if (key === "ArrowUp") {
+		if (key === "ArrowUp" && !lineIndex) {
+			event.preventDefault();
 			selected = Math.min(selected + 1, statements.length - 1);
 			command.value = statements[selected];
 			syncHighlight();
 		}
-		if (key === "Enter" && command.value.length) {
-			exec(command.value);
-			statements.splice(1, 0, command.value);
-			command.value = statements[0] = "";
-			selected = 0;
-			command.scrollIntoView();
+		if (key === "Tab") {
+			event.preventDefault();
+			insertAtSelection("\t");
+			syncHighlight();
+		}
+
+		if (key === "]") {
+			const line = lines[lineIndex];
+			if (line.endsWith("\t\t"))
+				insertAtSelection("", 2);
+		}
+		
+		if (key === "Enter") event.preventDefault();
+
+		if (key === "Enter" && command.value.length && !shiftKey) {
+			let stop = false;
+
+			try {
+				parse(command.value);
+			} catch (err) {
+				if (err.message.includes("Unexpected end of input"))
+					stop = true;
+			}
+
+			if (!stop) {
+				exec(command.value);	
+				statements.splice(1, 0, command.value);
+				command.value = statements[0] = "";
+				selected = 0;
+				syncHighlight();
+				return;
+			}
+		}
+
+		if (key === "Enter") {
+			const lastLine = lines[lineIndex];
+			let tabs = lastLine.match(/^\t*/)[0];
+			if (lastLine.endsWith("["))
+				tabs += "\t";
+			insertAtSelection("\n" + tabs);
 			syncHighlight();
 		}
 	});
@@ -99,5 +150,5 @@ function logElement(element) {
 
 	command.focus();
 
-	addEventListener("load", () => command.scrollIntoView());
+	addEventListener("load", syncHighlight);
 }
