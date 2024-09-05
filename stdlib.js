@@ -33,6 +33,11 @@ in = [
 		|> typeOf
 		|> convertibleTo class
 ];
+random = random & [
+	real length = length
+		|> rangeTo
+		|> fill random
+];
 indices = [
 	any() list = list
 		|> len
