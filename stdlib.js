@@ -1438,6 +1438,14 @@ standardize = [
 		|> - mu
 		|> / sd
 ];
+toZ = [
+	real() x = x
+		|> standardize mean(x) stdDev(x)
+];
+toT = [
+	real() x = x
+		|> standardize mean(x) sampStdDev(x)
+];
 destandardize = [
 	real z, real mu, real sd = z
 		|> * sd
