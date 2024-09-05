@@ -20,7 +20,7 @@ function highlight(source, palette) {
 	color(/\b(real|operator|any|ignore|void|filter|reduce|typeOf|is|to|primitive|as|type|in|toString|if|else|for)\b/g, "type");
 	color(/(['"])((.*?)(\\\\)?(((.*?)[^\\])*?))*?(\1|$)/g, "string");
 	color(/\/\/.*/g, "comment");
-	color(/\/\*.\*\//gs, "comment");
+	color(/\/\*.*?\*\//gs, "comment");
 
 	for (let i = 1; i < colors.length; i++)
 		if (!source[i].trim())

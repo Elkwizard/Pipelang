@@ -169,9 +169,9 @@ count = [
 		|> len
 ];
 contains = [
-	real(2) range, real v = v
-		|> >= range(0)
-		|> && <=(v, range(1)) 
+	real(2) { min, max }, real v = v
+		|> >= min
+		|> && <=(v, max) 
 ];
 within = [
 	real v, real(2) range = range
@@ -1784,8 +1784,7 @@ hash = [
 			|> abs
 			|> round
 		] [= key
-			|> len
-			|> rangeTo
+			|> indices
 			|> [real index = hash(key(index))]
 			|> sum
 			|> hash
