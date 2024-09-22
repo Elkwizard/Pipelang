@@ -6,9 +6,26 @@ createType = [
 			type acc, real dim = (dim == -1 ? acc() : acc(dim))
 		]
 ];
+withOverload = [
+	operator a, operator b = a & b
+];
 ! = [
 	real condition = condition
 		|> == false
+];
+** = ** & [
+	operator op, real exponent = 
+		multiCall = [
+			value, count = (count > 0 ? op(multiCall(value, count - 1)) : value)
+		];
+		op
+			|> operands
+			|> createOperator [
+				operator() args = args
+					|> first
+					|> unwrap
+					|> multiCall exponent
+			]
 ];
 ^ = **;
 !== = [
@@ -125,9 +142,13 @@ concat = [
 		|> rangeTo
 		|> map [i < len(a) ? a(i) : b(i - len(a))]
 ];
-push = [
+append = [
 	any() a, any b = a
 		|> concat { b }
+];
+prepend = [
+	any() a, any b = { b }
+		|> concat a
 ];
 padStart = [
 	any() list, real size, fillEl = size
@@ -270,11 +291,18 @@ sliceOf = [
 ] & [
 	real n, any() list = list(n:)
 ];
+listOf = [
+	value = { value }
+];
 head = [
 	any() list, real count = list(:count)
+] & [
+	any() list = list(:-1)
 ];
 tail = [
 	any() list, real count = list(-(len(list), count):)
+] & [
+	any() list = list(1:)
 ];
 first = [
 	any() list = list(0)
@@ -1275,10 +1303,10 @@ unwrapOn = [
 		|> unwrapCall op
 ];
 wrap = [
-	value = [value]
+	value = [= value]
 ];
 unwrap = [
-	operator box = box()
+	operator wrapped = wrapped()
 ];
 IQROutliers = [
 	real() list = list
@@ -1932,7 +1960,7 @@ currentScope["linReg"] = new Operator([
 // addMultiplier = [
 // 	operator base = base
 // 			|> operands
-// 			|> push real
+// 			|> append real
 // 			|> createOperator [
 // 				operator() ops = ops(:-1)
 // 					|> unwrapCall base

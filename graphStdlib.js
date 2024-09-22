@@ -1,65 +1,53 @@
 evalStat(`
 GRAPH_ASPECT_RATIO = /(7, 8);
+GraphOperation = operator(2);
+Graph = GraphOperation();
+
+graphContinuation = [
+	operator op = op
+		|> operands
+		|> prepend Graph
+		|> createOperator [
+			operator() ops = ops
+				|> first
+				|> unwrap
+				|> concat unwrapCall(tail(ops), op)
+		]
+		|> withOverload op
+];
+
 graphOperation = [
-	operator method, operator() settings = { { method, [= settings] } }
+	String name, type() types = types
+		|> createOperator [
+			operator() ops = { { [=name], [= ops] } }
+		]
+		|> graphContinuation
 ];
 
-graphXAxis = [
-	real marks = graphOperation graphXAxis { [=marks] }
-];
+// primitives
+graphXAxis = graphOperation "xaxis" { real };
+graphYAxis = graphOperation "yaxis" { real };
+graphGrid = graphOperation "grid" { };
+graphText = graphOperation "text" { String, real(2) };
+graphRect = graphOperation "rect" { real(2), real(2) };
+graphPoint = graphOperation "point" { real(2) };
+graphLine = graphOperation "line" { real(2), real(2) };
+graphPixels = graphOperation "pixels" { real(4)()(), real(2) };
 
-graphYAxis = [
-	real marks = graphOperation graphYAxis { [=marks] }
-];
+// settings
+graphColor = graphOperation "color" { real(4) };
+graphDash = graphOperation "dash" { real() };
+graphLineWidth = graphOperation "linewidth" { real };
+graphPolygon = graphOperation "polygon" { real(2)() };
 
-graphGrid = [
-	= graphOperation graphGrid { }
-];
-
-graphBase = [
+graphBase = graphContinuation [
 	real marks = graphGrid()
-		|> concat graphXAxis(marks)
-		|> concat graphYAxis(marks)
+		|> graphXAxis marks
+		|> graphYAxis marks
 ];
 
-graphText = [
-	real() text, real(2) location = graphOperation graphText { [=text], [=location] }
-];
-
-graphRect = [
-	real(2) min, real(2) max = graphOperation graphRect { [=min], [=max] }
-];
-
-graphPoint = [
-	real(2) location = graphOperation graphPoint { [=location] }
-];
-
-graphLine = [
-	real(2) a, real(2) b = graphOperation graphLine { [=a], [=b] }
-];
-
-graphPixels = [
-	real()()(4) pixels, real(2) location = graphOperation graphPixels { [=pixels], [=location] }
-];
-
-graphColor = [
-	real(4) color = graphOperation graphColor { [=color] }
-];
-
-graphDash = [
-	real() dash = graphOperation graphDash { [=dash] }
-];
-
-graphLineWidth = [
-	real lineWidth = graphOperation graphLineWidth { [=lineWidth] }
-];
-
-graphPolygon = [
-	real()(2) points = graphOperation graphPolygon { [=points] }
-];
-
-graphLines = [
-	real()(2) points = rangeTo(-(len(points), 1))
+graphLines = graphContinuation [
+	real(2)() points = rangeTo(-(len(points), 1))
 		|> [real inx = { points(inx), points(+(inx, 1)) }]
 		|> [real(2)(2) line = graphLine line(0) line(1) |> first]
 ];
@@ -76,7 +64,7 @@ getFunctionGraphPoints = [
 		|> [real x = { x, fn(x) }]
 ];
 
-graphArea = [
+graphArea = graphContinuation [
 	operator fn, real(2) domain = fn
 		|> getFunctionGraphPoints domain
 		|> [
@@ -87,14 +75,14 @@ graphArea = [
 		|> graphPolygon
 ];
 
-graphFunction = [
+graphFunction = graphContinuation [
 	operator fn, real(2) domain = fn
 		|> getFunctionGraphPoints domain
 		|> graphLines
 ];
 
-graphPoints = [
-	real()(2) points = points
+graphPoints = graphContinuation [
+	real(2)() points = points
 		|> [
 			real(2) point = point
 				|> graphPoint
@@ -102,8 +90,8 @@ graphPoints = [
 		]
 ];
 
-graphRegression = [
-	real()(2) points, operator model = graphPoints points
+graphRegression = graphContinuation [
+	real(2)() points, operator model = graphPoints points
 		|> concat graphColor({ 1, 0, 1, 1 })
 		|> concat graphFunction(model, {
 			minAll(axis(points, 0)),
@@ -111,7 +99,7 @@ graphRegression = [
 		})
 ];
 
-graphNormalProbability = [
+graphNormalProbability = graphContinuation [
 	real() x = x
 		|> len
 		|> is n
@@ -136,21 +124,15 @@ currentScope["display"] = new Operator([
 	canvas.style.height = (canvas.height / devicePixelRatio) + "px";
 	const c = canvas.getContext("2d");
 	c.scale(devicePixelRatio, devicePixelRatio);
-	
-	const simplify = object => {
-		if (object instanceof List) return object.elements.map(element => simplify(element));
-		return object;
-	};
 
 	actions = actions.toArray().map(action => {
-		const [{ sourceCode }, settings] = action;
+		const [name, settings] = action;
 		return {
-			action: sourceCode.split(" ")[1].replace("graph", "").toLowerCase(),
-			settings:
-				settings
-					.operate()
+			action: Operator.unwrap(name).asString(),
+			settings: Operator.unwrap(settings)
 					.toArray()
-					.map(setting => simplify(setting.operate()))
+					.map(Operator.unwrap)
+					.map(element => element instanceof List ? element.toArray() : element)
 		};
 	});
 

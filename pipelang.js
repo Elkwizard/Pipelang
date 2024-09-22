@@ -254,9 +254,12 @@ class Operator {
 	}
 	arrayOperate(args) {
 		if (this.overload) {
+			const { length } = callStack;
 			try {
 				return this.baseOperate(args, true);
-			} catch (err) { }
+			} catch (err) {
+				callStack.length = length;
+			}
 			return this.overload.arrayOperate(args);
 		}
 
@@ -805,12 +808,19 @@ currentScope["==="] = new Operator([
 	};
 
 	if (a.constructor !== b.constructor) return 0;
+	if (a instanceof Type) {
+		if (a.ignore || b.ignore) return +(a.ignore === b.ignore);
+		if (a.baseType !== b.baseType) return 0;
+		if (a.dimensions.length !== b.dimensions.length) return 0;
+		return +a.dimensions.every((v, i) => v === b.dimensions[i]);
+	}
 	if (a instanceof List) {
 		if (a.length !== b.length) return 0;
 		if (!a.length) return 1;
 		if (!typeOf(a).equals(typeOf(b))) return 0;
 		return +recurseEqual(a, b);
-	} else return +(a === b);
+	}
+	return +(a === b);
 });
 
 // APIs
