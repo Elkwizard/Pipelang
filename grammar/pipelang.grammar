@@ -1,4 +1,4 @@
-comment = /\/\/.*|\/\*([\w\W]*?)\*\//
+comment = hidden /\s+|\/\/.*|\/\*([\w\W]*?)\*\//
 string = /"((\\.)*(.*?))*?"/
 char = /'\\?.'/
 symbol = /[{}()\[\];,:.$]|\|>|(=(?!=))/
@@ -27,6 +27,7 @@ Expression = base:Expression step:Suffix | BaseExpression
 // precedence expressions
 Precedence = operators Expression {
 	prefix Prefix ("-" | "!" | "++" | "--")
+	right Composition ("of")
 	right Exponential ("^" | "**")
 	left Product ("*" | "/" | "%")
 	left Sum ("+" | "-" | "#")

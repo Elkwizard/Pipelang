@@ -603,7 +603,7 @@ function evalStat(command) {
 			first, make.Call(operator, rest)
 		);
 	});
-	ast.transform([AST.Prefix, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
+	ast.transform([AST.Prefix, AST.Composition, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
 		const { op, ...rest } = node;
 		const args = Object.values(rest);
 		return make.Expression(

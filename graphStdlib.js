@@ -3,6 +3,18 @@ GRAPH_ASPECT_RATIO = /(7, 8);
 GraphOperation = operator(2);
 Graph = GraphOperation();
 
+of = [
+	operator f, operator g = f
+		|> operands
+		|> createOperator [
+			operator() ops = ops
+				|> unwrapCall f
+				|> g
+		]
+] & [
+	operator f, g = f g
+];
+
 graphContinuation = [
 	operator op = op
 		|> operands
