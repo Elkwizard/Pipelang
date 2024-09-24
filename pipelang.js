@@ -222,6 +222,14 @@ class Operator {
 		this.operands = operands;
 		this.operandTypes = operands.map(op => op[0]);
 		this.operandNames = operands.map(op => op[1]);
+		this.operandDefaults = operands.map(op => op[2]);
+		this.minOperands = 0;
+		for (let i = 0; i < this.operandDefaults.length; i++)
+			if (!this.operandDefaults[i])
+				this.minOperands = i + 1;
+		if (this.operandDefaults.slice(0, this.minOperands).some(Boolean))
+			throw new TypeError("Optional operands must be consecutive");
+		this.maxOperands = this.operands.length;
 		this.method = method;
 		this.tailCall = tailCall;
 		this.sourceCode = "...";
@@ -268,8 +276,13 @@ class Operator {
 	baseOperate(args, topLevel = false) {
 		const { operandTypes } = this;
 
-		if (args.length !== operandTypes.length)
+		if (args.length < this.minOperands || args.length > this.maxOperands)
 			throw new TypeError(`No operator '${this.localName}' exists with ${args.length} operand${args.length === 1 ? "" : "s"}`);
+
+		while (args.length < this.maxOperands) {
+			const value = this.operandDefaults[args.length];
+			args.push(evalExpression(value));
+		}
 
 		const actualTypes = args.map(typeOf);
 
@@ -314,11 +327,12 @@ class Operator {
 		return new List(elements);
 	}
 	toString() {
-		let normalized = `[${this.operands.map(([type, name]) => {
+		let normalized = `[${this.operands.map(([type, name, value]) => {
 			let result = type.ignore ? "" : type + " ";
 			result += typeof name === "string" ? name : name.textContent;
+			if (value) result += ": " + value.textContent;
 			return result;
-		}).join(", ")} = ${this.sourceCode}]`
+		}).join(", ")} = ${this.sourceCode}]`;
 		if (this.overload) normalized += " & " + this.overload;
 		return normalized;
 	}
@@ -521,7 +535,7 @@ function evalExpression(expr) {
 					if (!(type instanceof Type))
 						cannotUse(type, "as a operand type");
 				} else type = new Type(null);
-				return [type, parameter.name];
+				return [type, parameter.name, parameter.value];
 			});
 		}
 

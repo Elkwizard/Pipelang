@@ -124,6 +124,16 @@ graphNormalProbability = graphContinuation [
 		|> graphRegression linReg(points)
 ];
 
+graph = [
+	real(2)() points = graphBase true
+		|> graphPoints points
+		|> display
+] & [
+	operator fn, real radius = graphBase true
+		|> graphFunction fn both(radius, -)
+		|> display
+];
+
 `);
 
 currentScope["display"] = new Operator([
