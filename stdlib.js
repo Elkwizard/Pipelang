@@ -9,6 +9,17 @@ createType = [
 withOverload = [
 	operator a, operator b = a & b
 ];
+commute = [
+	operator op = op
+		|> operands
+		|> reverse
+		|> createOperator [
+			operator() ops = ops
+				|> reverse
+				|> unwrapCall op
+		]
+		|> withOverload op
+];
 ! = [
 	real condition = condition
 		|> == false
@@ -96,12 +107,17 @@ swap = [
 		]
 ];
 flat = [
-	any() arr, real depth = depth
+	any() arr, real depth: 1 = depth
 		|> > 0
 		|> ? [= arr
 			|> reduce { } concat
 			|> flat -(depth, 1)
 		] [= arr]
+];
+repeat = [
+	value, real count = count
+		|> rangeTo
+		|> [real index = value]
 ];
 fill = [
 	any() list, operator generate = list
@@ -129,6 +145,11 @@ all = [
 some = [
 	real() conditions = conditions
 		|> reduce false ||
+];
+empty = [
+	any() list = list
+		|> len
+		|> === 0
 ];
 reverse = [
 	any() list = list
@@ -222,20 +243,25 @@ findAllSeqIn = [
 		|> filter [i <= len(list) - len(seq)]
 		|> filter [list(i:i + len(seq)) === seq]
 ];
-_maybeFirst = [
-	values, else = values
+maybeFirst = [
+	any() list = list
 		|> len
-		|> ? [= values(0)] else
+		|> ? [= list(0)] [= no]
+];
+maybe = [
+	void value, operator fn = value
+] & [
+	value, operator fn = fn value
 ];
 findIn = [
 	any value, any() list = value
 		|> findAllIn list
-		|> _maybeFirst [= -1]
+		|> maybeFirst
 ];
 findSeqIn = [
 	any() seq, any() list = seq
 		|> findAllSeqIn list
-		|> _maybeFirst [= -1]
+		|> maybeFirst
 ];
 ln = log;
 log = log10;
@@ -912,6 +938,16 @@ reflect = [
 		|> + v
 ];
 
+rightNormal = [
+	real(2) { x, y } = { -y, x }
+];
+
+leftNormal = [
+	real(2) vec = vec
+		|> rightNormal
+		|> * -1	
+];
+
 dot = [
 	real() u, real() v = u
 		|> * v
@@ -1268,7 +1304,11 @@ minAll = [
 ];
 maxAll = [
 	real() list = list
-		|> reduce -Infinity max
+		|> reduce $(-Infinity) max
+];
+bounds = [
+	real() list = list
+		|> apply { minAll, maxAll };
 ];
 argMin = [
 	real() list = list
@@ -1447,8 +1487,6 @@ logitReg = [
 			]
 		]
 ];
-
-
 subRange = [
 	real sub, real span = span
 		|> * sub
@@ -1742,6 +1780,15 @@ switch = [
 String = real();
 # = [String a, String b = concat a b];
 
+assert = [
+	value, operator check, reference, String reason = value
+		|> check reference
+		|> assert reason
+		|> to value
+] & [
+	real condition, String reason = condition
+		|> ? [= no] [= error("Assertion failed: " # reason)]
+];
 toUpperCase = [
 	real ch = ch
 		|> within "az"
@@ -1767,7 +1814,7 @@ split = [
 		]
 ];
 join = [
-	String() strings, String delim = strings
+	String() strings, String delim: "" = strings
 		|> reduce "" [
 			String acc, String element = acc
 				|> len
@@ -1791,29 +1838,50 @@ replace = [
 Field = operator(2);
 Object = Field();
 field = [
-	String name, any value = { [= name], [struct = value] }
+	String name, value = { [= name], [struct = value] }
 ];
 method = [
 	String name, operator fn = { [= name], fn }
 ];
-read = [
+_getObjectEntries = [
 	Object struct, String name = struct
 		|> filter [
-			Field field = field(0)()
+			Field entry = entry(0)()
 				|> === name
 		]
-		|> is result
-		|> len
-		|> ? [= result(0)(1)(struct)] [= no]
+];
+read = [
+	any struct, String name = struct
+		|> decay
+		|> _getObjectEntries name
+		|> maybeFirst
+		|> maybe [Field field = field(1)(struct)]
+];
+has = [
+	Object struct, String name = struct
+		|> _getObjectEntries name
+		|> empty
+		|> !
+];
+with = [
+	Object struct, String name, value = struct
+		|> has name
+		|> ? [= struct
+			|> filter [
+				Field entry = entry(0)()
+					|> !== name
+			]
+		] [= struct]
+		|> append field(name, value)
 ];
 keys = [
 	Object struct = struct
-		|> [Field field = field(0)()]
+		|> [Field entry = entry(0)()]
 ];
 values = [
 	Object struct = struct
 		|> [
-			Field field = field(1)(struct)
+			Field entry = entry(1)(struct)
 				|> wrap
 		]
 ];
@@ -1896,17 +1964,69 @@ getValue = [
 		|> _getEntries key
 		|> is matches
 		|> len
-		|> ? [= matches(0)(1)()] [= error("Key not found")]
+		|> ? [= matches(0)(1)()] [= no]
 ];
 
-// horrid
-if = [
-	real condition = [
-		operator ifTrue, else, operator ifFalse = condition
-			|> ? ifTrue ifFalse
-	]
+createClass = [
+	String name, Object spec = 
+		getFields = [
+			type goal = spec
+				|> filter [
+					Field entry = spec
+						|> read entry(0)()
+						|> in goal
+				]
+		];
+		template = getFields type;
+		methods = getFields operator;
+		fields = keys template;
+		classType = createBaseType name;
+		construct = template
+			|> values
+			|> unwrap
+			|> createOperator [
+				operator() args = args
+					|> indices
+					|> map [
+						real index = fields(index)
+							|> field args(index)()
+					]
+					|> concat methods
+					|> as classType
+			];
+		construct
+			|> withOverload [
+				Object struct = fields
+					|> [
+						String name = struct
+							|> read name
+							|> assert !== no $("Field '" # name # "' is missing")
+							|> wrap
+					]
+					|> unwrapCall construct
+			]
+			|> withOverload [= classType];
 ];
-else = 0;
+
+class = unwrap;
+
+// complex
+class Complex {
+	r: real
+	i: real
+};
+toMatrix &= [
+	class(Complex) { r:, i: } = {
+		{ r, -i },
+		{ i, r }
+	}
+];
++ &= [
+	class(Complex) a, class(Complex) b = Complex(a.r + b.r, a.i + b.i)
+];
++ &= commute [
+	class(Complex) a, real b = Complex(a.r + b, a.i)
+];
 `.trim());
 
 const round = num => Math.round(num * 1e3) / 1e3;

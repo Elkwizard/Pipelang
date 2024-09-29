@@ -43,14 +43,16 @@ DestructureField = key:identifier ":" name:Name?
 ObjectDestructure = "{" fields:DestructureField[","?] "}"
 WrappedName = "[" name:Name "]"
 Name = WrappedName | ListDestructure | ObjectDestructure | identifier
-Alias = "is" name:Name
+Alias = overload:"&"? "is" name:Name
 Reset = "to" value:Expression
 Step = Alias | Reset | Call
 InitialCall = operator:Expression arguments:Expression+
 FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
 
 Assignment = target:Name "=" value:FullExpression
-Statement = Assignment | FullExpression
+OverloadAssignment = target:identifier "&=" value:FullExpression
+Class = "class" name:identifier body:Expression
+Statement = Class | OverloadAssignment | Assignment | FullExpression
 Body = statements:Statement{";"} ";"?
 
 root = Body

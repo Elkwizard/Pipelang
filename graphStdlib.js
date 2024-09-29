@@ -37,6 +37,11 @@ graphOperation = [
 ];
 
 // primitives
+color = [
+	real brightness = color(brightness, brightness, brightness)
+] & [
+	real r, real g, real b, real a: 1 = { r, g, b, a }
+];
 graphXAxis = graphOperation "xaxis" { real };
 graphYAxis = graphOperation "yaxis" { real };
 graphGrid = graphOperation "grid" { };
@@ -53,7 +58,7 @@ graphLineWidth = graphOperation "linewidth" { real };
 graphPolygon = graphOperation "polygon" { real(2)() };
 
 graphBase = graphContinuation [
-	real marks = graphGrid()
+	real marks: true = graphGrid()
 		|> graphXAxis marks
 		|> graphYAxis marks
 ];
@@ -102,6 +107,50 @@ graphPoints = graphContinuation [
 		]
 ];
 
+graphCappedBar = graphContinuation [
+	real(2) a, real(2) b, real width =
+		caps = (b - a)
+			|> rightNormal
+			|> normalize
+			|> * width
+			|> / 2
+			|> both -;
+		{ a, b }
+			|> [
+				real(2) end = end
+					|> + caps
+					|> call graphLine
+			]
+			|> flat
+			|> graphLine a b;
+];
+
+graphErrorBar = graphContinuation [
+	real(2) p, real(2) ax, real error, real barWidth = ax
+		|> * error
+		|> both -
+		|> + p
+		|> call [
+			real(2) a, real(2) b = graphCappedBar a b barWidth
+		]
+];
+
+graphErrorBars = graphContinuation([
+	real(2) point, real(2) errors, real(2) barWidth = point
+		|> graphErrorBar identityMatrix(2) errors barWidth
+		|> flat
+]) & graphContinuation([
+	real(2)() points, real(2)() errors = 
+		barWidth = points
+			|> zip
+			|> range
+			|> reverse
+			|> * 0.03;
+		points
+			|> graphErrorBars errors barWidth
+			|> flat;
+]);
+
 graphRegression = graphContinuation [
 	real(2)() points, operator model = graphPoints points
 		|> concat graphColor({ 1, 0, 1, 1 })
@@ -109,6 +158,28 @@ graphRegression = graphContinuation [
 			minAll(axis(points, 0)),
 			maxAll(axis(points, 0))
 		})
+];
+
+graphExperiment = [
+	real()() data, real(2) { errX, errY } =
+		x = data(0);
+		ys = data
+			|> tail
+			|> zip;
+		y = mean ys;
+		errors = ys
+			|> sampStdDev
+			|> max errY
+			|> [real errY = { errX, errY }];
+		points = zip { x, y };
+		model = linReg points;
+		print model;
+		graphBase()
+			|> graphColor color(0.5)
+			|> graphErrorBars points errors
+			|> graphColor color(0)
+			|> graphRegression points model
+			|> display;
 ];
 
 graphNormalProbability = graphContinuation [
@@ -133,7 +204,6 @@ graph = [
 		|> graphFunction fn both(radius, -)
 		|> display
 ];
-
 `);
 
 currentScope["display"] = new Operator([
@@ -495,6 +565,18 @@ function createPlot(points, {
 
 	return plot;
 }
+
+if (false) exec(`
+	x = random 10;
+	y = rangeTo 3
+		|> fill [= x
+			|> fill random
+			|> * 0.3
+			|> + $(2 * x)
+		];
+	error = { 0.01, 0.01 };
+	graphExperiment prepend(y, x) error;
+`);
 
 if (false) exec(`
 // graphBase(true)

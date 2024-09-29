@@ -145,6 +145,24 @@ class List {
 		this.elements = elements;
 		this.length = elements.length;
 	}
+	decay() {
+		return new List(this.elements);
+	}
+	withType(type) {
+		if (!(type instanceof Type))
+			cannotUse(type, "as an object type");
+
+		if (
+			type.ignore ||
+			type.dimensions.length ||
+			primitiveTypes.has(type.baseType)
+		) throw new TypeError(`Cannot use '${type.toString()}' as an object type`);
+
+		const result = this.decay();
+		result.type = type;
+		result.exotic = true;
+		return result;
+	}
 	invalidIndex(index) {
 		return index < 0 || index >= this.length;
 	}
@@ -177,11 +195,23 @@ class List {
 		return String.fromCharCode(...this.elements);
 	}
 	toString() {
+		const prefix = this.exotic ? this.type.toString() : "";
 		if (this.elements.length) {
-			// if (this.elements[0] instanceof List) return `${LIST_OPEN}\n${this.elements.map(el => "\t" + el).join(",\n")}\n${LIST_CLOSE}`;
-			return `{ ${this.elements.join(", ")} }`;
+			const fields = this.elements.map(field => this.parseField(field));
+			if (fields.every(Boolean))
+				return prefix + `{ ${fields.join(", ")} }`;
+			return prefix + `{ ${this.elements.join(", ")} }`;
 		}
-		return `{ }`;
+		return prefix + `{ }`;
+	}
+	parseField(field) {
+		if (field.length !== 2) return null;
+		try {
+			const [key, value] = field.elements;
+			return `${Operator.unwrap(key).asString()}: ${value.operate(this)}`;
+		} catch (err) {
+			return null;
+		}
 	}
 }
 
@@ -243,19 +273,36 @@ class Operator {
 	get localName() {
 		return this._localName;
 	}
-	copy() {
+	get overloads() {
+		const result = [this.copyAlone()];
+		if (this.overload) result.push(...this.overload.overloads);
+		return result;
+	}
+	copyAlone() {
 		const result = new Operator(this.operands, this.method, this.tailCall);
 		result.sourceCode = this.sourceCode;
-		if (result.overload) result.overload = result.overload.copy();
+		return result;
+	}
+	copy() {
+		const result = this.copyAlone();
+		if (this.overload)
+			result.overload = this.overload.copy();
 		return result;
 	}
 	withOverload(overload) {
+		if (!(overload instanceof Operator))
+			cannotUse(overload, "as an overload");
 		return this.copy().addOverload(overload);
 	}
 	addOverload(overload) {
 		if (this.overload) this.overload = this.overload.withOverload(overload);
 		else this.overload = overload;
 		return this;
+	}
+	fail(Error, ...args) {
+		const error = new Error(...args);
+		error.operator = this;
+		throw error;
 	}
 	operate(...args) {
 		return tryOperate(this, args);
@@ -266,6 +313,8 @@ class Operator {
 			try {
 				return this.baseOperate(args, true);
 			} catch (err) {
+				if (err.operator !== this)
+					throw err;
 				callStack.length = length;
 			}
 			return this.overload.arrayOperate(args);
@@ -277,7 +326,7 @@ class Operator {
 		const { operandTypes } = this;
 
 		if (args.length < this.minOperands || args.length > this.maxOperands)
-			throw new TypeError(`No operator '${this.localName}' exists with ${args.length} operand${args.length === 1 ? "" : "s"}`);
+			this.fail(TypeError, `No operator '${this.localName}' exists with ${args.length} operand${args.length === 1 ? "" : "s"}`);
 
 		while (args.length < this.maxOperands) {
 			const value = this.operandDefaults[args.length];
@@ -288,7 +337,7 @@ class Operator {
 
 		const correctTypes = actualTypes.every((type, i) => type.hasElementsOfType(operandTypes[i]));
 		if (!correctTypes)
-			throw new OperandError(this.localName, actualTypes);
+			this.fail(OperandError, this.localName, actualTypes);
 
 		const exactTypes = actualTypes.every((type, i) => type.equals(operandTypes[i]));
 		if (exactTypes) {
@@ -311,7 +360,7 @@ class Operator {
 		const base = args[baseIndex];
 
 		if (!base.length)
-			throw new TypeError("Cannot operate over an empty list");
+			this.fail(TypeError, "Cannot operate over an empty list");
 
 		const elements = [];
 		for (let i = 0; i < base.length; i++) {
@@ -327,12 +376,18 @@ class Operator {
 		return new List(elements);
 	}
 	toString() {
+		let { sourceCode } = this;
+		if (sourceCode instanceof AST) {
+			sourceCode = format(sourceCode.textContent.replace(/\s+/g, " "));
+			// sourceCode = this.sourceCode.toString();
+		}
+
 		let normalized = `[${this.operands.map(([type, name, value]) => {
 			let result = type.ignore ? "" : type + " ";
 			result += typeof name === "string" ? name : name.textContent;
 			if (value) result += ": " + value.textContent;
 			return result;
-		}).join(", ")} = ${this.sourceCode}]`;
+		}).join(", ")} = ${sourceCode}]`;
 		if (this.overload) normalized += " & " + this.overload;
 		return normalized;
 	}
@@ -462,12 +517,26 @@ function alias(binding, value) {
 }
 
 function evalExpression(expr) {
+	if (expr instanceof AST.OverloadAssignment) {
+		const { target, value } = expr;
+		
+		evalExpression(value);
+	}
+	
 	if (expr instanceof AST.FullExpression) {
 		const { base, step } = expr;
 		let init = evalExpression(base);
 		
 		if (step instanceof AST.Alias) {
-			alias(step.name, init);
+			const { name } = step;
+			if (step.overload && name in currentScope) {
+				const value = currentScope[name];
+				if (!(value instanceof Operator))
+					cannotUse(value, "as an overload target");
+				return currentScope[name] = value.withOverload(init);
+			}
+			
+			alias(name, init);
 		} else if (step instanceof AST.Reset) {
 			init = evalExpression(step.value);
 		} else {
@@ -565,7 +634,7 @@ function evalExpression(expr) {
 			return result;
 		}, !!tailCall);
 
-		operator.sourceCode = format(expr.body.textContent.replace(/\s+/g, " "));
+		operator.sourceCode = expr.body;
 
 		return operator;
 	}
@@ -578,8 +647,22 @@ function evalStat(command) {
 
 	const ast = parse(command);
 	const { make } = AST;
+	ast.transform(AST.Class, ({ name, body }) => {
+		return make.Assignment(
+			name, make.Expression(
+				make.Reference("createClass"),
+				make.Arguments([
+					make.StringValue(JSON.stringify(name)),
+					body
+				])
+			)
+		);
+	});
+	ast.transform(AST.OverloadAssignment, ({ target, value }) => {
+		return make.FullExpression(value, make.Alias("&", target));
+	});
 	ast.transform(AST.Assignment, ({ target, value }) => {
-		return make.FullExpression(value, make.Alias(target));
+		return make.FullExpression(value, make.Alias(undefined, target));
 	});
 	ast.transform(AST.Expression, expr => {
 		if (expr.step instanceof AST.Property)
@@ -649,8 +732,9 @@ function evalStat(command) {
 		return op;
 	});
 	ast.transform(AST.Operator, op => {
-		op.body.statements = op.body.statements.map(stmt => {
-			if (!(stmt.step instanceof AST.Call)) return stmt;
+		const { statements } = op.body;
+		op.body.statements = statements.map((stmt, i) => {
+			if (!(stmt.step instanceof AST.Call) || i < statements.length - 1) return stmt;
 			op.tailCall = stmt.step;
 			return stmt.base;
 		});
@@ -665,13 +749,10 @@ function evalStat(command) {
 }
 
 // types
-currentScope["operator"] = new Type("operator");
-currentScope["real"] = new Type("real");
-currentScope["type"] = new Type("type");
-currentScope["void"] = new Type("void");
-currentScope["any"] = new Type("any");
 currentScope["ignore"] = new Type(null);
-currentScope["primitive"] = new Type("primitive");
+const primitiveTypes = new Set(["operator", "real", "type", "void", "any", "primitive"]);
+for (const type of primitiveTypes)
+	currentScope[type] = new Type(type);
 
 currentScope["convertibleTo"] = new Operator([
 	[new Type("type"), "src"],
@@ -702,9 +783,29 @@ currentScope["baseOf"] = new Operator([
 	[new Type("type"), "class"]
 ], type => new Type(type.baseType));
 
+currentScope["decay"] = new Operator([
+	[new Type(null), "object"]
+], object => object.decay?.() ?? object);
+
+currentScope["as"] = new Operator([
+	[new Type("operator", [2, null]), "object"],
+	[new Type("type"), "newType"]
+], (object, name) => object.withType(name));
+
+currentScope["createBaseType"] = new Operator([
+	[new Type("real", [null]), "name"]
+], name => {
+	name = name.asString();
+	return new Type(name);
+});
+
 currentScope["operands"] = new Operator([
 	[new Type("operator"), "op"]
 ], op => new List(op.operandTypes));
+
+currentScope["overloads"] = new Operator([
+	[new Type("operator"), "op"]
+], op => new List(op.overloads));
 
 currentScope["createOperator"] = new Operator([
 	[new Type("type", [null]), "operandTypes"],
