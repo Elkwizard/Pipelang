@@ -73,17 +73,13 @@ currentScope["clear"] = new Operator([], () => {
 	log("workspace cleared");
 });
 
-Array.prototype.toString = function () {
-	return `[${this.join(", ")}]`;
-};
-
 function exec(command) {
 	const THROWN_ERROR = "#FF9696";
 
 	try {
 		log(highlight(command, CODE_COLORS));
 		const result = evalStat(command);
-		log(highlight(result, OUT_COLORS), "» ");
+		log("» " + highlight(result, OUT_COLORS));
 		if (result !== undefined) currentScope["ans"] = result;
 	} catch (err) {
 		const message = `${err}\n${

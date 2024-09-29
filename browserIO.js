@@ -54,6 +54,10 @@ function logElement(element) {
 	document.getElementById("logs").appendChild(element);
 }
 
+const CLOSE = {
+	"[": "]"
+};
+
 { // command bar
 	const statements = [""];
 	let selected = 0;
@@ -71,20 +75,32 @@ function logElement(element) {
 		command.scrollIntoView();
 	};
 
-	const insertAtSelection = (str, remove = 0) => {
+	const insertAtSelection = (str, remove = 0, after = "") => {
 		const start = command.selectionStart;
 		const end = command.selectionEnd;
 		const { value } = command;
-		command.value = value.slice(0, start - remove) + str + value.slice(end);
+		command.value = value.slice(0, start - remove) + str + after + value.slice(end);
 		command.selectionStart = command.selectionEnd = end + str.length;
 	};
 
 	command.addEventListener("keydown", event => {
-		const { key, shiftKey } = event;
+		const { key, ctrlKey, shiftKey } = event;
 
-		const lineIndex = command.value.slice(0, command.selectionStart).match(/\n/g)?.length ?? 0;
+		const before = command.value.slice(0, command.selectionStart);
+		const lineIndex = before.match(/\n/g)?.length ?? 0;
 		const lines = command.value.split("\n");
-		
+		const char = command.value[command.selectionStart] ?? "";
+
+		if (ctrlKey && key === "l") {
+			event.preventDefault();
+			navigator.clipboard.readText().then(text => {
+				const toString = list => list.length === 1 ? String(list[0]) : `{ ${list.join(" ")} }`;
+				const lines = toString(text.trim().	split(/\r?\n/g).map(line => toString(line.split("\t"))));
+				insertAtSelection(lines);
+				syncHighlight();
+			});
+		}
+
 		if (key === "ArrowDown" && lineIndex === lines.length - 1) {
 			event.preventDefault();
 			selected = Math.max(selected - 1, 0);
@@ -103,9 +119,11 @@ function logElement(element) {
 			syncHighlight();
 		}
 
+		if (key in CLOSE)
+			insertAtSelection("", 0, CLOSE[key]);
+
 		if (key === "]") {
-			const line = lines[lineIndex];
-			if (line.endsWith("\t\t"))
+			if (before.endsWith("\t\t"))
 				insertAtSelection("", 2);
 		}
 		
@@ -132,11 +150,11 @@ function logElement(element) {
 		}
 
 		if (key === "Enter") {
-			const lastLine = lines[lineIndex];
+			const lastLine = before.match(/.*$/)[0];
 			let tabs = lastLine.match(/^\t*/)[0];
 			if (lastLine.endsWith("["))
 				tabs += "\t";
-			insertAtSelection("\n" + tabs);
+			insertAtSelection("\n" + tabs, 0, char === "]" ? "\n" : "");
 			syncHighlight();
 		}
 	});

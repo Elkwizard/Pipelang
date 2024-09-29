@@ -1771,7 +1771,7 @@ join = [
 		|> reduce "" [
 			String acc, String element = acc
 				|> len
-				|> ? [= acc # delim # element] [= element]
+				|> ? [= (acc # delim # element)] [= element]
 		]
 ];
 replaceAll = [
@@ -1806,6 +1806,17 @@ read = [
 		|> len
 		|> ? [= result(0)(1)(struct)] [= no]
 ];
+keys = [
+	Object struct = struct
+		|> [Field field = field(0)()]
+];
+values = [
+	Object struct = struct
+		|> [
+			Field field = field(1)(struct)
+				|> wrap
+		]
+];
 
 // hash table
 Entry = [
@@ -1814,7 +1825,7 @@ Entry = [
 
 hash = [
 	any key = key
-		|> in primitive
+		|> in real
 		|> ? [= key
 			|> + 29837162.12376
 			|> * 394872.12398
