@@ -136,7 +136,7 @@ graphCappedBar = graphContinuation [
 
 graphErrorBar = graphContinuation [
 	real(2) p, real(2) ax, real u, real barWidth = ax
-		|> * u
+		|> * max(1e-9, u)
 		|> both -
 		|> + p
 		|> call [
