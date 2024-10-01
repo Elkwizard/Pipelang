@@ -51,7 +51,7 @@ FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
 
 Assignment = target:Name "=" value:FullExpression
 OverloadAssignment = target:identifier "&=" value:FullExpression
-Class = "class" name:identifier body:Expression
+Class = "class" name:identifier body:FullExpression
 Statement = Class | OverloadAssignment | Assignment | FullExpression
 Body = statements:Statement{";"} ";"?
 

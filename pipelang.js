@@ -213,6 +213,9 @@ class List {
 			return null;
 		}
 	}
+	static fromString(string) {
+		return new List(string.split("").map(ch => ch.charCodeAt()));
+	}
 }
 
 function format(source) {
@@ -552,7 +555,7 @@ function evalExpression(expr) {
 		return tryOperate(evalExpression(expr.operator), evalList(expr.arguments));
 
 	if (expr instanceof AST.StringValue)
-		return new List(JSON.parse(expr.value).split("").map(ch => ch.charCodeAt()));
+		return List.fromString(JSON.parse(expr.value));
 
 	if (expr instanceof AST.NumberValue)
 		return +expr.value;
@@ -649,12 +652,12 @@ function evalStat(command) {
 	const { make } = AST;
 	ast.transform(AST.Class, ({ name, body }) => {
 		return make.Assignment(
-			name, make.Expression(
-				make.Reference("createClass"),
-				make.Arguments([
-					make.StringValue(JSON.stringify(name)),
-					body
-				])
+			name, make.FullExpression(
+				body,
+				make.Call(
+					make.Reference("createClass"),
+					[make.StringValue(JSON.stringify(name))]
+				)
 			)
 		);
 	});

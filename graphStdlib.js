@@ -28,10 +28,10 @@ graphContinuation = [
 		|> withOverload op
 ];
 
-graphOperation = [
+graphPrimitive = [
 	String name, type() types = types
 		|> createOperator [
-			operator() ops = { { [=name], [= ops] } }
+			operator() ops = { { [= name], [= ops] } }
 		]
 		|> graphContinuation
 ];
@@ -42,25 +42,34 @@ color = [
 ] & [
 	real r, real g, real b, real a: 1 = { r, g, b, a }
 ];
-graphXAxis = graphOperation "xaxis" { real };
-graphYAxis = graphOperation "yaxis" { real };
-graphGrid = graphOperation "grid" { };
-graphText = graphOperation "text" { String, real(2) };
-graphRect = graphOperation "rect" { real(2), real(2) };
-graphPoint = graphOperation "point" { real(2) };
-graphLine = graphOperation "line" { real(2), real(2) };
-graphPixels = graphOperation "pixels" { real(4)()(), real(2) };
+graphXAxis = graphPrimitive "xaxis" { real };
+graphYAxis = graphPrimitive "yaxis" { real };
+graphGrid = graphPrimitive "grid" { };
+graphText = graphPrimitive "text" { String, real(2) };
+graphRect = graphPrimitive "rect" { real(2), real(2) };
+graphPoint = graphPrimitive "point" { real(2) };
+graphLine = graphPrimitive "line" { real(2), real(2) };
+graphPixels = graphPrimitive "pixels" { real(4)()(), real(2) };
+graphTitle = graphPrimitive "title" { String };
+graphXTitle = graphPrimitive "xtitle" { String };
+graphYTitle = graphPrimitive "ytitle" { String };
 
 // settings
-graphColor = graphOperation "color" { real(4) };
-graphDash = graphOperation "dash" { real() };
-graphLineWidth = graphOperation "linewidth" { real };
-graphPolygon = graphOperation "polygon" { real(2)() };
+graphColor = graphPrimitive "color" { real(4) };
+graphDash = graphPrimitive "dash" { real() };
+graphLineWidth = graphPrimitive "linewidth" { real };
+graphPolygon = graphPrimitive "polygon" { real(2)() };
 
 graphBase = graphContinuation [
 	real marks: true = graphGrid()
 		|> graphXAxis marks
 		|> graphYAxis marks
+];
+
+graphTitles = graphContinuation [
+	String title, String xTitle: "", String yTitle: "" = graphTitle title
+		|> graphXTitle xTitle
+		|> graphYTitle yTitle
 ];
 
 graphLines = graphContinuation [
@@ -126,8 +135,8 @@ graphCappedBar = graphContinuation [
 ];
 
 graphErrorBar = graphContinuation [
-	real(2) p, real(2) ax, real error, real barWidth = ax
-		|> * error
+	real(2) p, real(2) ax, real u, real barWidth = ax
+		|> * u
 		|> both -
 		|> + p
 		|> call [
@@ -161,7 +170,7 @@ graphRegression = graphContinuation [
 ];
 
 graphExperiment = [
-	real()() data, real(2) { errX, errY } =
+	String xTitle, String yTitle, real()() data, real(2) { errX, errY } =
 		x = data(0);
 		ys = data
 			|> tail
@@ -175,6 +184,7 @@ graphExperiment = [
 		model = linReg points;
 		print model;
 		graphBase()
+			|> graphTitles $(yTitle # " vs. " # xTitle) xTitle yTitle
 			|> graphColor color(0.5)
 			|> graphErrorBars points errors
 			|> graphColor color(0)
@@ -209,13 +219,17 @@ graph = [
 currentScope["display"] = new Operator([
 	[new Type("operator", [2, null]), "actions"]
 ], actions => {
+	const PADDING = 40;
+	const WIDTH = 400;
+	const HEIGHT = WIDTH * currentScope["GRAPH_ASPECT_RATIO"];
 	const canvas = document.createElement("canvas");
-	canvas.width = 400 * devicePixelRatio;
-	canvas.height = canvas.width * currentScope["GRAPH_ASPECT_RATIO"];
+	canvas.width = (WIDTH + PADDING * 2) * devicePixelRatio;
+	canvas.height = (HEIGHT + PADDING * 2) * devicePixelRatio;
 	canvas.style.width = (canvas.width / devicePixelRatio) + "px";
 	canvas.style.height = (canvas.height / devicePixelRatio) + "px";
 	const c = canvas.getContext("2d");
 	c.scale(devicePixelRatio, devicePixelRatio);
+	c.translate(PADDING, PADDING);
 
 	actions = actions.toArray().map(action => {
 		const [name, settings] = action;
@@ -228,8 +242,10 @@ currentScope["display"] = new Operator([
 		};
 	});
 
-	const width = canvas.width / devicePixelRatio;
-	const height = canvas.height / devicePixelRatio;
+	const BASE_FONT = "10px Arial";
+	const AXIS_TITLE_FONT = `${PADDING * 0.4}px Arial`;
+	const TITLE_FONT = `${PADDING * 0.6}px Arial`;
+	const AXIS_TITLE_OFFSET = PADDING * 0.35;
 
 	const points = [];
 	for (const { action, settings } of actions) {
@@ -280,15 +296,15 @@ currentScope["display"] = new Operator([
 	spanX = maxX - minX;
 	spanY = maxY - minY;
 
-	const mapX = x => (x - minX) / spanX * width;
-	const mapY = y => (1 - (y - minY) / spanY) * height;
-
-	c.font = "10px Arial";
+	const mapX = x => (x - minX) / spanX * WIDTH;
+	const mapY = y => (1 - (y - minY) / spanY) * HEIGHT;
 	
 	const LABEL_OFFSET = 3;
 
 	const Y_AXIS_X = Math.max(minX, Math.min(maxX, 0));
 	const X_AXIS_Y = Math.max(minY, Math.min(maxY, 0));
+
+	const parseString = string => typeof string === "string" ? string : String.fromCharCode(...string);
 
 	const plot = {
 		line([x1, y1], [x2, y2]) {
@@ -335,6 +351,27 @@ currentScope["display"] = new Operator([
 			c.lineTo(...points[0]);
 			c.fill();
 		},
+		title(message) {
+			c.font = TITLE_FONT;
+			c.textAlign = "center";
+			c.fillText(parseString(message), WIDTH / 2, -AXIS_TITLE_OFFSET);
+			c.textAlign = "start";
+		},
+		xtitle(message) {
+			c.font = AXIS_TITLE_FONT;
+			c.textAlign = "center";
+			c.fillText(parseString(message), WIDTH / 2, HEIGHT + PADDING * 0.7);
+			c.textAlign = "start";
+		},
+		ytitle(message) {
+			c.save();
+			c.translate(-AXIS_TITLE_OFFSET, HEIGHT / 2);
+			c.rotate(-Math.PI / 2);
+			c.font = AXIS_TITLE_FONT;
+			c.textAlign = "center";
+			c.fillText(parseString(message), 0, 0);
+			c.restore();
+		},
 		xaxis(marks) {
 			this.color([0, 1, 0]);
 			this.line([minX, X_AXIS_Y], [maxX, X_AXIS_Y]);
@@ -369,7 +406,8 @@ currentScope["display"] = new Operator([
 			this.color();
 		},
 		text(chars, [x, y]) {
-			c.fillText(typeof chars === "string" ? chars : String.fromCharCode(...chars), x, y);
+			c.font = BASE_FONT;
+			c.fillText(parseString(chars), x, y);
 		},
 		pixels(colors, [minX, minY]) {
 			const width = colors[0].length;
@@ -393,7 +431,7 @@ currentScope["display"] = new Operator([
 	};
 	
 	plot.color([1, 1, 1]);
-	plot.rect([minX, minY], [maxX, maxY]);
+	c.fillRect(-PADDING, -PADDING, WIDTH + PADDING * 2, HEIGHT + PADDING * 2);
 	plot.color([0, 0, 0]);
 
 	for (const { action, settings } of actions)
@@ -402,180 +440,16 @@ currentScope["display"] = new Operator([
 	logElement(canvas);
 });
 
-function createPlot(points, {
-	xaxis = true,
-	yaxis = false,
-	grid = false,
-	xmarks = false,
-	ymarks = false
-} = {}) {
-	const canvas = document.createElement("canvas");
-	canvas.width = 400 * devicePixelRatio;
-	canvas.height = 350 * devicePixelRatio;
-	canvas.style.width = (canvas.width / devicePixelRatio) + "px";
-	canvas.style.height = (canvas.height / devicePixelRatio) + "px";
-
-	const c = canvas.getContext("2d");
-	c.scale(devicePixelRatio, devicePixelRatio);
-
-	const width = canvas.width / devicePixelRatio;
-	const height = canvas.height / devicePixelRatio;
-
-	const x = points.map(p => p[0]);
-	const y = points.map(p => p[1]);
-	let minX = Math.min(...x);
-	let maxX = Math.max(...x);
-	let minY = Math.min(...y);
-	let maxY = Math.max(...y);
-	let spanX = maxX - minX;
-	let spanY = maxY - minY;
-
-	const paddingX = spanX * 0.1;
-	const paddingY = spanY * 0.1;
-	minX -= paddingX;
-	maxX += paddingX;
-	minY -= paddingY;
-	maxY += paddingY;
-	spanX = maxX - minX;
-	spanY = maxY - minY;
-
-	const integer = number => 2 ** Math.round(Math.log2(number));
-
-	const xScale = integer(spanX / 10);
-	const yScale = integer(spanY / 10);
-
-	minX = Math.floor(minX / xScale) * xScale;
-	maxX = Math.ceil(maxX / xScale) * xScale;
-	minY = Math.floor(minY / yScale) * yScale;
-	maxY = Math.ceil(maxY / yScale) * yScale;
-	spanX = maxX - minX;
-	spanY = maxY - minY;
-
-	const mapX = x => (x - minX) / spanX * width;
-	const mapY = y => (1 - (y - minY) / spanY) * height;
-
-	const plot = {
-		element: canvas,
-		minX, minY,
-		maxX, maxY,
-		point(x, y, color = "black") {
-			x = mapX(x);
-			y = mapY(y);
-
-			c.strokeStyle = color;
-			c.lineWidth = 2;
-			c.setLineDash([]);
-			c.save();
-			c.translate(x, y);
-			c.rotate(Math.PI / 4);
-			c.strokeRect(-3, -3, 6, 6);
-			c.restore();
-		},
-		text(text, x, y, color = "black") {
-			c.fillStyle = color;
-			x = mapX(x);
-			y = mapY(y);
-			c.fillText(text, x, y);
-		},
-		rect(x, y, width, height, color = "lime") {
-			const maxX = mapX(x + width);
-			const maxY = mapY(y + height);
-			x = mapX(x);
-			y = mapY(y);
-			c.fillStyle = color;
-			c.fillRect(x, y, maxX - x, maxY - y);
-		},
-		line(x1, y1, x2, y2, color = "lime", dash = []) {
-			x1 = mapX(x1);
-			x2 = mapX(x2);
-			y1 = mapY(y1);
-			y2 = mapY(y2);
-
-			c.beginPath();
-			c.strokeStyle = color;
-			c.lineWidth = 2;
-			c.setLineDash(dash);
-			c.moveTo(x1, y1);
-			c.lineTo(x2, y2);
-			c.stroke();
-		},
-		graph(fn, _minX = minX, _maxX = maxX, color = "purple", dash = [3, 1]) {
-			let last = null;
-			const step = (_maxX - _minX) / 300;
-			for (let i = _minX; i < _maxX + step; i += step) {
-				const y = fn(i);
-				if (last !== null)
-					this.line(i - step, last, i, y, color, dash);
-				last = y;
-			}
-		},
-		graphArea(fn, _minX = minX, _maxX = maxX, color = "blue") {
-			
-			const points = [];
-
-			c.beginPath();
-			c.moveTo(mapX(_minX), mapY(0));
-			
-			const step = (_maxX - _minX) / 300;
-			for (let i = _minX; i < _maxX + step; i += step)
-				c.lineTo(mapX(i), mapY(fn(i)));
-
-			c.lineTo(mapX(_maxX), mapY(0));
-
-			c.fillStyle = color;
-			c.fill();
-		}
-	};
-
-	plot.rect(minX, minY, maxX - minX, maxY - minY, "white");
-
-	c.font = "10px Arial";
-
-	const LABEL_OFFSET = 3;
-
-	const Y_AXIS_X = Math.max(minX, Math.min(maxX, 0));
-	const X_AXIS_Y = Math.max(minY, Math.min(maxY, 0));
-
-	for (let i = minX; i < maxX; i += xScale) for (let j = minY; j < maxY; j += yScale) {
-		c.setLineDash([]);
-		c.lineWidth = 1;
-		c.strokeStyle = "rgb(150, 150, 200)";
-		const I = Math.floor(i / xScale) * xScale;
-		const J = Math.floor(j / yScale) * yScale;
-		const x = mapX(I);
-		const y = mapY(J);
-
-		if (grid) {
-			const width = mapX(I + xScale) - x;
-			const height = mapY(J + yScale) - y;
-			c.strokeRect(x, y, width, height);
-		}
-
-		if (I === Y_AXIS_X && ymarks) { // add y axis markers
-			c.fillStyle = "red";
-			c.fillText(J, x + LABEL_OFFSET, y - LABEL_OFFSET);
-		} else if (J === X_AXIS_Y && xmarks) { // add x axis markers
-			c.fillStyle = "blue";
-			c.fillText(I, x + LABEL_OFFSET, y - LABEL_OFFSET);
-		}
-	}
-
-	if (xaxis) plot.line(minX, X_AXIS_Y, maxX, X_AXIS_Y, "blue");
-	if (yaxis) plot.line(Y_AXIS_X, minY, Y_AXIS_X, maxY, "red");
-
-	return plot;
-}
-
 if (false) exec(`
 	x = random 10;
 	y = rangeTo 3
 		|> fill [= x
 			|> fill random
-			|> * 0.3
+			|> * 3
 			|> + $(2 * x)
 		];
 	error = { 0.01, 0.01 };
-	graphExperiment prepend(y, x) error;
+	graphExperiment "Force [N]" "Distance [m]" prepend(y, x) error;
 `);
 
 if (false) exec(`

@@ -24,7 +24,7 @@ commute = [
 	real condition = condition
 		|> == false
 ];
-** = ** & [
+** &= [
 	operator op, real exponent = 
 		multiCall = [
 			value, count = (count > 0 ? op(multiCall(value, count - 1)) : value)
@@ -52,9 +52,14 @@ commute = [
 	real number = number
 		|> - 1
 ];
-- = - & [
+- &= [
 	real number = 0
 		|> - number
+];
+?? = [
+	void a, b = b
+] & [
+	a, b = a
 ];
 in = [
 	any value, type class = value
@@ -77,6 +82,9 @@ reduce = [
 		|> ? [= data(1:)
 			|> reduce combine(base, data(0)) combine
 		] [= base]
+] & [
+	any() data, operator combine = data(1:)
+		|> reduce data(0) combine
 ];
 zip = [
 	any()() grid = grid
@@ -210,8 +218,8 @@ odd = [
 count = [
 	any() list, value = list
 		|> filter [
-			v = v
-				|> == value
+			element = element
+				|> === value
 		]
 		|> len
 ];
@@ -1304,7 +1312,7 @@ minAll = [
 ];
 maxAll = [
 	real() list = list
-		|> reduce $(-Infinity) max
+		|> reduce -(Infinity) max
 ];
 bounds = [
 	real() list = list
@@ -1855,7 +1863,7 @@ read = [
 		|> decay
 		|> _getObjectEntries name
 		|> maybeFirst
-		|> maybe [Field field = field(1)(struct)]
+		|> maybe [Field entry = entry(1)(struct)]
 ];
 has = [
 	Object struct, String name = struct
@@ -1968,7 +1976,7 @@ getValue = [
 ];
 
 createClass = [
-	String name, Object spec = 
+	Object spec, String name = 
 		getFields = [
 			type goal = spec
 				|> filter [
@@ -1981,7 +1989,7 @@ createClass = [
 		methods = getFields operator;
 		fields = keys template;
 		classType = createBaseType name;
-		construct = template
+		template
 			|> values
 			|> unwrap
 			|> createOperator [
@@ -1993,8 +2001,8 @@ createClass = [
 					]
 					|> concat methods
 					|> as classType
-			];
-		construct
+			]
+			|> is construct
 			|> withOverload [
 				Object struct = fields
 					|> [
@@ -2007,25 +2015,29 @@ createClass = [
 			]
 			|> withOverload [= classType];
 ];
-
 class = unwrap;
+extends = [
+	Object base, Object template = base
+		|> concat template
+];
 
 // complex
 class Complex {
 	r: real
 	i: real
 };
+Complex_t = class(Complex);
 toMatrix &= [
-	class(Complex) { r:, i: } = {
+	Complex_t { r:, i: } = {
 		{ r, -i },
 		{ i, r }
 	}
 ];
 + &= [
-	class(Complex) a, class(Complex) b = Complex(a.r + b.r, a.i + b.i)
+	Complex_t a, Complex_t b = Complex(a.r + b.r, a.i + b.i)
 ];
 + &= commute [
-	class(Complex) a, real b = Complex(a.r + b, a.i)
+	Complex_t a, real b = Complex(a.r + b, a.i)
 ];
 `.trim());
 
@@ -2069,7 +2081,7 @@ currentScope["linReg"] = new Operator([
 			[new Type("real"), "x"]
 		], x => a + b * x);
 
-		operator.sourceCode = `${round(a)} + ${round(b)} x /* r: ${round(r)}, r²: ${round(r ** 2)} */`;
+		operator.sourceCode = `(${round(a)} + ${round(b)} * x) /* r: ${round(r)}, r²: ${round(r ** 2)} */`;
 
 		return operator;
 	} else {
