@@ -9,6 +9,20 @@ createType = [
 withOverload = [
 	operator a, operator b = a & b
 ];
+of = [
+	operator f, operator g = f
+		|> operands
+		|> createOperator [
+			operator() ops = ops
+				|> unwrapCall f
+				|> g
+		]
+] & [
+	operator f, g = f(g)
+];
+identity = [
+	value = value
+];
 commute = [
 	operator op = op
 		|> operands
@@ -62,9 +76,9 @@ commute = [
 	a, b = a
 ];
 in = [
-	any value, type class = value
+	any value, type cls = value
 		|> typeOf
-		|> convertibleTo class
+		|> convertibleTo cls
 ];
 random = random & [
 	real length = length
@@ -191,7 +205,7 @@ padEnd = [
 		|> - len(list)
 		|> rangeTo
 		|> fill [= fillEl]
-		|> [padding = concat list padding]
+		|> [padding = concat(list, padding)]
 ];
 roundTo = [
 	real number, real digits = 10
@@ -259,7 +273,7 @@ maybeFirst = [
 maybe = [
 	void value, operator fn = value
 ] & [
-	value, operator fn = fn value
+	value, operator fn = fn(value)
 ];
 findIn = [
 	any value, any() list = value
@@ -980,7 +994,7 @@ cross = [
 ];
 
 planeNormal = [
-	real() a, real() b, real() c = cross $(a - b) $(c - b)
+	real() a, real() b, real() c = cross(a - b, c - b)
 ];
 
 mag = [
@@ -1394,11 +1408,11 @@ linRegCoefs = [
 		|> is k
 		|> to points
 		|> [
-			real() point = concat { 1 } point(:-1)
+			real() point = concat({ 1 }, head(point))
 		]
 		|> is X
 		|> to points
-		|> [real() point = point(-(k, 1))]
+		|> axis -1
 		|> is y
 		|> to X
 		|> transpose
@@ -1661,7 +1675,7 @@ invT = [
 					|> * sign(-(area, 0.5))
 				])
 				default([= INVT_RANGE
-					|> binarySearch INVT_PRECISION [real x = TcdfIndefinite x df] area
+					|> binarySearch INVT_PRECISION [real x = TcdfIndefinite(x, df)] area
 				])
 			}
 		] [= NaN]
@@ -1786,7 +1800,7 @@ switch = [
 
 // strings
 String = real();
-# = [String a, String b = concat a b];
+# = [String a, String b = concat(a, b)];
 
 assert = [
 	value, operator check, reference, String reason = value
@@ -1985,10 +1999,10 @@ createClass = [
 						|> in goal
 				]
 		];
-		template = getFields type;
-		methods = getFields operator;
-		fields = keys template;
-		classType = createBaseType name;
+		template = getFields(type);
+		methods = getFields(operator);
+		fields = keys(template);
+		classType = createBaseType(name);
 		template
 			|> values
 			|> unwrap
@@ -2036,7 +2050,7 @@ toMatrix &= [
 + &= [
 	Complex_t a, Complex_t b = Complex(a.r + b.r, a.i + b.i)
 ];
-+ &= commute [
++ &= |> commute [
 	Complex_t a, real b = Complex(a.r + b, a.i)
 ];
 `.trim());

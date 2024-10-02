@@ -34,6 +34,7 @@ Precedence = operators Expression {
 	left Compare ("==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=")
 	left Logic ("&&" | "||")
 	custom Conditional (condition:last "?" ifTrue:Precedence ":" ifFalse:Conditional)
+	custom Pipe (source:Pipe "|>" step:Step | "|>" step:Call)
 }
 
 // full expressions
@@ -46,13 +47,11 @@ Name = WrappedName | ListDestructure | ObjectDestructure | identifier
 Alias = overload:"&"? "is" name:Name
 Reset = "to" value:Expression
 Step = Alias | Reset | Call
-InitialCall = operator:Expression arguments:Expression+
-FullExpression = base:FullExpression "|>" step:Step | InitialCall | Expression
 
-Assignment = target:Name "=" value:FullExpression
-OverloadAssignment = target:identifier "&=" value:FullExpression
-Class = "class" name:identifier body:FullExpression
-Statement = Class | OverloadAssignment | Assignment | FullExpression
+Assignment = target:Name "=" value:Precedence
+OverloadAssignment = target:identifier "&=" value:Precedence
+Class = "class" name:identifier body:Precedence
+Statement = Class | OverloadAssignment | Assignment | Precedence
 Body = statements:Statement{";"} ";"?
 
 root = Body

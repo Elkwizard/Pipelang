@@ -526,9 +526,9 @@ function evalExpression(expr) {
 		evalExpression(value);
 	}
 	
-	if (expr instanceof AST.FullExpression) {
-		const { base, step } = expr;
-		let init = evalExpression(base);
+	if (expr instanceof AST.Pipe) {
+		const { source, step } = expr;
+		let init = evalExpression(source);
 		
 		if (step instanceof AST.Alias) {
 			const { name } = step;
@@ -550,9 +550,6 @@ function evalExpression(expr) {
 		
 		return init;
 	}
-
-	if (expr instanceof AST.InitialCall)
-		return tryOperate(evalExpression(expr.operator), evalList(expr.arguments));
 
 	if (expr instanceof AST.StringValue)
 		return List.fromString(JSON.parse(expr.value));
@@ -642,7 +639,7 @@ function evalExpression(expr) {
 		return operator;
 	}
 
-	return "failure";
+	throw new Error("Unsupported operation!?!");
 }
 
 function evalStat(command) {
@@ -652,7 +649,7 @@ function evalStat(command) {
 	const { make } = AST;
 	ast.transform(AST.Class, ({ name, body }) => {
 		return make.Assignment(
-			name, make.FullExpression(
+			name, make.Pipe(
 				body,
 				make.Call(
 					make.Reference("createClass"),
@@ -662,10 +659,10 @@ function evalStat(command) {
 		);
 	});
 	ast.transform(AST.OverloadAssignment, ({ target, value }) => {
-		return make.FullExpression(value, make.Alias("&", target));
+		return make.Pipe(value, make.Alias("&", target));
 	});
 	ast.transform(AST.Assignment, ({ target, value }) => {
-		return make.FullExpression(value, make.Alias(undefined, target));
+		return make.Pipe(value, make.Alias(undefined, target));
 	});
 	ast.transform(AST.Expression, expr => {
 		if (expr.step instanceof AST.Property)
@@ -698,10 +695,12 @@ function evalStat(command) {
 			])
 		);
 	});
-	ast.transform(AST.InitialCall, ({ operator, arguments: [first, ...rest] }) => {
-		return make.FullExpression(
-			first, make.Call(operator, rest)
-		);
+	ast.transform(AST.Pipe, pipe => {
+		if (pipe.source) return pipe;
+
+		const { arguments: [source, ...rest], operator } = pipe.step;
+
+		return make.Pipe(source, make.Call(operator, rest.length ? rest : undefined));
 	});
 	ast.transform([AST.Prefix, AST.Composition, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
 		const { op, ...rest } = node;
@@ -739,7 +738,7 @@ function evalStat(command) {
 		op.body.statements = statements.map((stmt, i) => {
 			if (!(stmt.step instanceof AST.Call) || i < statements.length - 1) return stmt;
 			op.tailCall = stmt.step;
-			return stmt.base;
+			return stmt.source;
 		});
 		return op;
 	});
