@@ -58,21 +58,95 @@ const CLOSE = {
 	"[": "]"
 };
 
+function getSuggestions(identifier) {
+	const getDist = (a, b) => {
+		if (b.length < a.length) [a, b] = [b, a];
+		let dist = 0;
+		for (let i = 0; i < a.length; i++) {
+			const char = a[i];
+			const inx = b.indexOf(char);
+			if (inx === -1) {
+				break;
+			} else {
+				dist += inx;
+				b = b.slice(inx + 1);
+			}
+		}
+
+		return dist + b.length;
+	};
+
+	identifier = identifier.toLowerCase();
+	const variables = [...getAllVariables()]
+		.map(([key, value]) => [getDist(identifier, key.toLowerCase()), key, typeName(value)])
+		.sort((a, b) => a[0] - b[0])
+		.map(entry => entry.slice(1));
+	return variables;
+}
+
 { // command bar
 	const statements = [""];
 	let selected = 0;
 
 	const command = document.getElementById("command");
 	const commandHighlight = document.getElementById("commandHighlight");
+	const suggestions = document.getElementById("suggestions");
 
 	command.addEventListener("scroll", () => { 
 		commandHighlight.scrollLeft = command.scrollLeft;
+		commandHighlight.scrollTop = command.scrollTop;
 	});
 
+	
+	const updateSuggestions = () => {
+		const termRegex = /[^(){}\[\]\s]*$/;
+		const term = command.value.slice(0, command.selectionStart).match(termRegex)[0];
+		suggestions.replaceChildren(...getSuggestions(term).slice(0, 10).map(suggestion => {
+			const entry = document.createElement("div");
+			entry.replaceChildren(
+				...suggestion.map(piece => {
+					const div = document.createElement("div");
+					div.innerHTML = applyFormat(highlight(piece, CODE_COLORS));
+					return div;
+				})
+			);
+			const replace = suggestion[0];
+			entry.addEventListener("mousedown", event => {
+				event.preventDefault();
+				const { selectionStart, value } = command;
+				let sel = selectionStart;
+				command.value = value
+					.slice(0, selectionStart)
+					.replace(termRegex, found => {
+						sel = selectionStart + replace.length - found.length;
+						return replace;
+					}) + value.slice(selectionStart);
+				command.selectionEnd = command.selectionStart = sel;
+				syncHighlight();
+			});
+			return entry;
+		}));
+	}
+
 	const syncHighlight = () => {
-		commandHighlight.innerHTML = applyFormat(highlight(command.value, CODE_COLORS));
+		let { value, selectionEnd } = command;
+		const mark = "\x01";
+		value = value.replaceAll(mark, "");
+		value = value.slice(0, selectionEnd) + mark + value.slice(selectionEnd);
+		value = value.replace(/(\x01)(\w+)/, "$2$1");
+		commandHighlight.innerHTML = applyFormat(highlight(value, CODE_COLORS))
+			.replaceAll("\x01", `<span id="selection"></span>`);
 		command.style.height = getComputedStyle(commandHighlight).height;
 		command.scrollIntoView();
+
+		{
+			// const selection = document.getElementById("selection");
+			// const { x, y } = selection.getBoundingClientRect();
+			// suggestions.style.left = `${x}px`;
+			// suggestions.style.top = `${y}px`;
+			
+			updateSuggestions();	
+		}
 	};
 
 	const insertAtSelection = (str, remove = 0, after = "") => {

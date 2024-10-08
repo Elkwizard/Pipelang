@@ -30,41 +30,41 @@ color = [
 ] & [
 	real r, real g, real b, real a: 1 = { r, g, b, a }
 ];
-graphXAxis = |> graphPrimitive "xaxis" { real };
-graphYAxis = |> graphPrimitive "yaxis" { real };
-graphGrid = |> graphPrimitive "grid" { };
-graphText = |> graphPrimitive "text" { String, real(2) };
-graphRect = |> graphPrimitive "rect" { real(2), real(2) };
-graphPoint = |> graphPrimitive "point" { real(2) };
-graphLine = |> graphPrimitive "line" { real(2), real(2) };
-graphPixels = |> graphPrimitive "pixels" { real(4)()(), real(2) };
-graphTitle = |> graphPrimitive "title" { String };
-graphXTitle = |> graphPrimitive "xtitle" { String };
-graphYTitle = |> graphPrimitive "ytitle" { String };
+graphXAxis = "xaxis" |> graphPrimitive { real };
+graphYAxis = "yaxis" |> graphPrimitive { real };
+graphGrid = "grid" |> graphPrimitive { };
+graphText = "text" |> graphPrimitive { String, real(2) };
+graphRect = "rect" |> graphPrimitive { real(2), real(2) };
+graphPoint = "point" |> graphPrimitive { real(2) };
+graphLine = "line" |> graphPrimitive { real(2), real(2) };
+graphPixels = "pixels" |> graphPrimitive { real(4)()(), real(2) };
+graphTitle = "title" |> graphPrimitive { String };
+graphXTitle = "xtitle" |> graphPrimitive { String };
+graphYTitle = "ytitle" |> graphPrimitive { String };
 
 // settings
-graphColor = |> graphPrimitive "color" { real(4) };
-graphDash = |> graphPrimitive "dash" { real() };
-graphLineWidth = |> graphPrimitive "linewidth" { real };
-graphPolygon = |> graphPrimitive "polygon" { real(2)() };
+graphColor = "color" |> graphPrimitive { real(4) };
+graphDash = "dash" |> graphPrimitive { real() };
+graphLineWidth = "linewidth" |> graphPrimitive { real };
+graphPolygon = "polygon" |> graphPrimitive { real(2)() };
 
-graphBase = |> graphContinuation [
+graphBase = graphContinuation([
 	real marks: true = graphGrid()
 		|> graphXAxis marks
 		|> graphYAxis marks
-];
+]);
 
-graphTitles = |> graphContinuation [
+graphTitles = graphContinuation([
 	String title, String xTitle: "", String yTitle: "" = graphTitle(title)
 		|> graphXTitle xTitle
 		|> graphYTitle yTitle
-];
+]);
 
-graphLines = |> graphContinuation [
+graphLines = graphContinuation([
 	real(2)() points = rangeTo(-(len(points), 1))
 		|> [real inx = { points(inx), points(+(inx, 1)) }]
 		|> [real(2)(2) line = graphLine(line(0), line(1)) |> first]
-];
+]);
 
 GRAPH_FUNCTION_RESOLUTION = 300;
 getFunctionGraphPoints = [
@@ -78,7 +78,7 @@ getFunctionGraphPoints = [
 		|> [real x = { x, fn(x) }]
 ];
 
-graphArea = |> graphContinuation [
+graphArea = graphContinuation([
 	operator fn, real(2) domain = fn
 		|> getFunctionGraphPoints domain
 		|> [
@@ -87,26 +87,26 @@ graphArea = |> graphContinuation [
 				|> concat { { domain(1), 0 } }
 		]
 		|> graphPolygon
-];
+]);
 
-graphFunction = |> graphContinuation [
+graphFunction = graphContinuation([
 	operator fn, real(2) domain = fn
 		|> getFunctionGraphPoints domain
 		|> graphLines
-];
+]);
 
-graphPoints = |> graphContinuation [
+graphPoints = graphContinuation([
 	real(2)() points = points
 		|> [
 			real(2) point = point
 				|> graphPoint
 				|> first
 		]
-];
+]);
 
-graphCappedBar = |> graphContinuation [
+graphCappedBar = graphContinuation([
 	real(2) a, real(2) b, real width =
-		caps = (b - a)
+		caps = b - a
 			|> rightNormal
 			|> normalize
 			|> * width
@@ -120,9 +120,9 @@ graphCappedBar = |> graphContinuation [
 			]
 			|> flat
 			|> graphLine a b;
-];
+]);
 
-graphErrorBar = |> graphContinuation [
+graphErrorBar = graphContinuation([
 	real(2) p, real(2) ax, real u, real barWidth = ax
 		|> * max(1e-9, u)
 		|> both -
@@ -130,7 +130,7 @@ graphErrorBar = |> graphContinuation [
 		|> call [
 			real(2) a, real(2) b = graphCappedBar(a, b, barWidth)
 		]
-];
+]);
 
 graphErrorBars = graphContinuation([
 	real(2) point, real(2) errors, real(2) barWidth = point
@@ -148,14 +148,14 @@ graphErrorBars = graphContinuation([
 			|> flat;
 ]);
 
-graphRegression = |> graphContinuation [
+graphRegression = graphContinuation([
 	real(2)() points, operator model = graphPoints(points)
 		|> concat graphColor({ 1, 0, 1, 1 })
 		|> concat graphFunction(model, {
 			minAll(axis(points, 0)),
 			maxAll(axis(points, 0))
 		})
-];
+]);
 
 graphExperiment = [
 	real()() data, String xTitle, String yTitle, real(2) { errX, errY } =
@@ -180,7 +180,7 @@ graphExperiment = [
 		model;
 ];
 
-graphNormalProbability = |> graphContinuation [
+graphNormalProbability = graphContinuation([
 	real() x = x
 		|> len
 		|> is n
@@ -191,7 +191,7 @@ graphNormalProbability = |> graphContinuation [
 		|> [real() prct = zip({ sort(x), prct })]
 		|> is points
 		|> graphRegression linReg(points)
-];
+]);
 
 graph = [
 	real(2)() points = graphBase()

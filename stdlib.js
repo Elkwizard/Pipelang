@@ -359,10 +359,7 @@ last = [
 	any() list = list(-(len(list), 1))
 ];
 lerp = [
-	real a, real b, real t = t
-		|> complement
-		|> * a
-		|> + *(b, t)
+	real t, real a, real b = a * (1 - t) + b * t
 ];
 sum = [
 	real() list = list
@@ -990,7 +987,7 @@ cross = [
 		u(0) * v(1) - u(1) * v(0)
 	}
 ] & [
-	real(2) u, real(2) v = (u(0) * v(1) - u(1) * v(0))
+	real(2) u, real(2) v = u(0) * v(1) - u(1) * v(0)
 ];
 
 planeNormal = [
@@ -1516,12 +1513,16 @@ subRange = [
 		|> rangeTo
 		|> / sub
 ];
+subdivide = [
+	real(2) { min, max }, real count = count
+		|> rangeTo
+		|> / $(count - 1)
+		|> lerp min max
+];
 integral = [
-	operator fn, real a, real b, real dx = dx
-		|> reciprocal
-		|> subRange -(b, a)
-		|> + a
-		|> + *(dx, 0.5) // MRAM
+	operator fn, real a, real b, real dx: 0.01 = { a, b }
+		|> + $(dx * 0.5) // MRAM
+		|> subdivide ceil(1 / dx)
 		|> fn
 		|> * dx
 		|> sum
@@ -2036,7 +2037,7 @@ extends = [
 ];
 
 // complex
-class Complex {
+class Complex = {
 	r: real
 	i: real
 };
@@ -2050,9 +2051,9 @@ toMatrix &= [
 + &= [
 	Complex_t a, Complex_t b = Complex(a.r + b.r, a.i + b.i)
 ];
-+ &= |> commute [
++ &= commute([
 	Complex_t a, real b = Complex(a.r + b, a.i)
-];
+]);
 `.trim());
 
 const round = num => Math.round(num * 1e3) / 1e3;

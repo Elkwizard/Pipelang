@@ -3,13 +3,12 @@
 	padding: 0;
 	box-sizing: border-box;
 	color: white;
-	font-size: 20px;
 	font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
 	border: none;
 	background: none;
 	outline: none;
 	line-height: 1.1;
-
+	font-size: inherit;
 	scrollbar-color: var(--scroll) transparent;
 	scrollbar-width: thin;
 }
@@ -17,12 +16,10 @@
 :root {
     --dark: #112;
     --light: white;
-}
-
-:root {
 	--primary: var(--dark);
 	--secondary: var(--light);
 	--scroll: #223;
+	font-size: 20px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -107,4 +104,40 @@ body {
 .log::before {
 	content: attr(data-prefix);
 	color: gray;
+}
+
+/* #selection {
+	display: inline-block;
+	width: 3px;
+	height: 10px;
+	background: red;
+} */
+
+#suggestions {
+	position: fixed;
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+	overflow-x: hidden;
+	align-items: end;
+	width: 30ch;
+	background: var(--primary);
+	z-index: 2;
+	border: 1px var(--secondary) solid;
+	top: 0;
+	right: 0;
+	font-size: 0.5em;
+
+	> div {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		width: 100%;
+		padding: 0.2em;
+		border-bottom: 1px var(--secondary) solid;
+
+		> div:last-child {
+			text-align: right;
+		}
+	}
 }

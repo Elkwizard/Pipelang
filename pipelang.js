@@ -391,7 +391,7 @@ class Operator {
 			if (value) result += ": " + value.textContent;
 			return result;
 		}).join(", ")} = ${sourceCode}]`;
-		if (this.overload) normalized += " & " + this.overload;
+		if (this.overload) normalized += "\n& " + this.overload;
 		return normalized;
 	}
 	static unwrap(value) {
@@ -415,6 +415,31 @@ function typeOf(value) {
 		case List:
 			return value.type;
 	}
+}
+
+function nameType(type) {
+	if (type.ignore) return "_";
+	let result = {
+		real: "ℝ",
+		operator: "𝑓",
+		any: "_",
+		void: "∅",
+		type: "𝕋"
+	}[type.baseType] ?? type.baseType;
+	const dims = [...type.dimensions];
+	for (let i = 0; i < dims.length; i++) {
+		const dim = dims[i];
+		result = `{${dim ? new Array(dim).fill(result).join(", ") : result + "…"}}`;
+	}
+	return result;
+}
+
+function typeName(value) {
+	if (value instanceof Operator)
+		return value.overloads
+			.map(overload => `[${overload.operandTypes.map(nameType).join(", ")}]`)
+			.join("\n");
+	return nameType(typeOf(value));
 }
 
 // scope & built-ins
@@ -444,6 +469,14 @@ const currentScope = new Proxy({}, {
 		scopes.at(-1).set(key, value);
 	}
 });
+
+function getAllVariables() {
+	const variables = new Map();
+	for (const scope of scopes)
+		for (const [key, value] of scope)
+			variables.set(key, value);
+	return variables;
+}
 
 function resetScopes() {
 	callStack.length = 0;
@@ -501,45 +534,36 @@ function evalBody({ statements }) {
 	return result;
 }
 
-function alias(binding, value) {
+function alias(binding, value, overload) {
 	if (binding instanceof AST.WrappedName) {
-		alias(binding.name, tryOperate(value, []));
+		alias(binding.name, tryOperate(value, []), overload);
 	} else if (binding instanceof AST.ObjectDestructure) {
 		const { read } = currentScope;
 		for (const { key, name } of binding.fields)
-			alias(name, tryOperate(read, [value, key]));
+			alias(name, tryOperate(read, [value, key]), overload);
 	} else if (binding instanceof AST.ListDestructure) {
 		if (!(value instanceof List))
 			cannotUse(value, "as a list");
 
 		for (let i = 0; i < binding.names.length; i++)
-			alias(binding.names[i], value.at(i))
+			alias(binding.names[i], value.at(i), overload);
 	} else {
-		currentScope[binding] = value;
+		if (overload && binding in currentScope) {
+			const old = currentScope[binding];
+			if (!(old instanceof Operator))
+				cannotUse(old, "as an overload target");
+			currentScope[binding] = old.withOverload(value);
+		} else currentScope[binding] = value;
 	}
 }
 
 function evalExpression(expr) {
-	if (expr instanceof AST.OverloadAssignment) {
-		const { target, value } = expr;
-		
-		evalExpression(value);
-	}
-	
 	if (expr instanceof AST.Pipe) {
 		const { source, step } = expr;
 		let init = evalExpression(source);
 		
 		if (step instanceof AST.Alias) {
-			const { name } = step;
-			if (step.overload && name in currentScope) {
-				const value = currentScope[name];
-				if (!(value instanceof Operator))
-					cannotUse(value, "as an overload target");
-				return currentScope[name] = value.withOverload(init);
-			}
-			
-			alias(name, init);
+			alias(step.name, init, !!step.overload);
 		} else if (step instanceof AST.Reset) {
 			init = evalExpression(step.value);
 		} else {
@@ -616,7 +640,6 @@ function evalExpression(expr) {
 			const oldScopes = scopes;
 			
 			const scope = new Map();
-			scope.set(Operator, operator);
 			scopes = [...closure, scope];
 			
 			for (let i = 0; i < args.length; i++)
@@ -647,22 +670,28 @@ function evalStat(command) {
 
 	const ast = parse(command);
 	const { make } = AST;
-	ast.transform(AST.Class, ({ name, body }) => {
-		return make.Assignment(
-			name, make.Pipe(
-				body,
+	ast.transform(AST.Assignment, ({ target, op, isClass, value }) => {
+		return make.Pipe(value, make.Alias(
+			op === "&=" ? "&" : undefined,
+			isClass ? "class" : undefined,
+			target
+		));
+	});
+	ast.transform(AST.Pipe, pipe => {
+		if (!(pipe.step instanceof AST.Alias) || !pipe.step.isClass)
+			return pipe;
+
+		const { source, step: { overload, name } } = pipe;
+		return make.Pipe(
+			make.Pipe(
+				source,
 				make.Call(
 					make.Reference("createClass"),
 					[make.StringValue(JSON.stringify(name))]
 				)
-			)
+			),
+			make.Alias(overload, undefined, name)
 		);
-	});
-	ast.transform(AST.OverloadAssignment, ({ target, value }) => {
-		return make.Pipe(value, make.Alias("&", target));
-	});
-	ast.transform(AST.Assignment, ({ target, value }) => {
-		return make.Pipe(value, make.Alias(undefined, target));
 	});
 	ast.transform(AST.Expression, expr => {
 		if (expr.step instanceof AST.Property)
@@ -694,13 +723,6 @@ function evalStat(command) {
 				value
 			])
 		);
-	});
-	ast.transform(AST.Pipe, pipe => {
-		if (pipe.source) return pipe;
-
-		const { arguments: [source, ...rest], operator } = pipe.step;
-
-		return make.Pipe(source, make.Call(operator, rest.length ? rest : undefined));
 	});
 	ast.transform([AST.Prefix, AST.Composition, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
 		const { op, ...rest } = node;

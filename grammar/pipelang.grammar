@@ -13,7 +13,7 @@ CharValue = value:char
 Value = NumberValue | StringValue | CharValue
 Field = key:identifier ":" value:Precedence
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
-Parameter = type:Expression? name:Name (":" value:Precedence)?
+Parameter = type:Expression? name:Name (":" value:Pipe)?
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
 Nested = "$"? "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
@@ -32,26 +32,25 @@ Precedence = operators Expression {
 	left Product ("*" | "/" | "%")
 	left Sum ("+" | "-" | "#")
 	left Compare ("==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=")
-	left Logic ("&&" | "||")
+	left Logic ("&&" | "||" | "??")
 	custom Conditional (condition:last "?" ifTrue:Precedence ":" ifFalse:Conditional)
-	custom Pipe (source:Pipe "|>" step:Step | "|>" step:Call)
+	custom Pipe (source:Pipe "|>" step:(Alias | Reset | Call))
+	custom Assignment (isClass:"class"? target:Name op:("&=" | "=") value:Assignment)
 }
 
-// full expressions
-Call = operator:Expression arguments:Expression*
+// destructuring
 ListDestructure = "{" names:Name[","?] "}"
 DestructureField = key:identifier ":" name:Name?
 ObjectDestructure = "{" fields:DestructureField[","?] "}"
 WrappedName = "[" name:Name "]"
 Name = WrappedName | ListDestructure | ObjectDestructure | identifier
-Alias = overload:"&"? "is" name:Name
-Reset = "to" value:Expression
-Step = Alias | Reset | Call
 
-Assignment = target:Name "=" value:Precedence
-OverloadAssignment = target:identifier "&=" value:Precedence
-Class = "class" name:identifier body:Precedence
-Statement = Class | OverloadAssignment | Assignment | Precedence
-Body = statements:Statement{";"} ";"?
+// steps
+Alias = overload:"&"? "is" isClass:"class"? name:Name
+Reset = "to" value:Expression
+Call = operator:Expression arguments:Expression*
+
+// statements
+Body = statements:Precedence{";"} ";"?
 
 root = Body
