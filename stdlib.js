@@ -359,7 +359,10 @@ last = [
 	any() list = list(-(len(list), 1))
 ];
 lerp = [
-	real t, real a, real b = a * (1 - t) + b * t
+	real t, real a, real b = t
+		|> both complement
+		|> * { b, a }
+		|> sum
 ];
 sum = [
 	real() list = list
@@ -1780,6 +1783,23 @@ for = [
 			|> for continue inc body
 		] [= no]
 ];
+
+// differential equations
+diffAdvance = [
+	operator() ddt, real dt = [
+		real() p = ddt
+			|> indices
+			|> [real i = p(i + 1) + ddt(i)(p) * dt]
+			|> prepend $(p(0) + dt)
+	]
+];
+diffSolve = [
+	real() initialValue, operator() ddt, real finalT, real dt: 0.01 = initialValue
+		|> (diffAdvance(dydt, dt) ^ (finalT / dt))
+];
+
+
+// switch
 condition = [
 	operator check, operator expr = { check, expr } 
 ];
@@ -1990,6 +2010,7 @@ getValue = [
 		|> ? [= matches(0)(1)()] [= no]
 ];
 
+// classes
 createClass = [
 	Object spec, String name = 
 		getFields = [

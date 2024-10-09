@@ -124,20 +124,24 @@ body {
 	background: var(--primary);
 	z-index: 2;
 	border: 1px var(--secondary) solid;
-	top: 0;
-	right: 0;
-	font-size: 0.5em;
+	top: -0.5px;
+	right: -0.5px;
+	font-size: 2vh;
 
 	> div {
 		display: flex;
-		flex-direction: row;
-		justify-content: space-between;
+		flex-direction: column;
 		width: 100%;
-		padding: 0.2em;
 		border-bottom: 1px var(--secondary) solid;
+		padding: 0.5em;
 
-		> div:last-child {
-			text-align: right;
+		> div {
+
+			&:last-child {
+				text-align: right;
+				padding-top: 0.3em;
+				font-size: 0.8em;
+			}
 		}
 	}
 }
