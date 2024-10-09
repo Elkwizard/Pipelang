@@ -12,7 +12,6 @@ function highlight(source, palette) {
 	
 	color(/(\b|\s|^)(\W+)(\b|\s|$)/g, "symbol");
 	color(/\b[^\W](\w*)\b/g, "base");
-	color(/(?<=([^<>!=]=\s*)|^)(\w+)\b(?!\s*(\|\>|=|$))/g, "function");
 	color(/\b[^\W](\w*)\s*(?=\(|=\s*\[)/g, "function");
 	color(/(?<=\|>\s*)[^\W](\w*)\b/g, "function");
 	color(/\-?\b(\d+\.?\d*|\.\d+)([eE][\+\-]?\d+)?\b/g, "number");

@@ -13,6 +13,7 @@ const log = msg => console.log(msg);
 const clear = () => console.clear();
 
 const { AST, parse } = importFile("./grammar/parse.js");
+importFile("./format.js");
 const {
 	currentScope, callStack, evalStat,
 	Operator, List, Type

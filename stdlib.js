@@ -1107,7 +1107,7 @@ determinant = [
 			|> == 1
 			|> ? [= m(0)(0)] [= cols
 				|> == 2
-				|> ? [= (m(0)(0) * m(1)(1) - m(1)(0) * m(0)(1))] [= cols
+				|> ? [= m(0)(0) * m(1)(1) - m(1)(0) * m(0)(1)] [= cols
 					|> rangeTo
 					|> [
 						real i = m
@@ -1797,7 +1797,6 @@ diffSolve = [
 	real() initialValue, operator() ddt, real finalT, real dt: 0.01 = initialValue
 		|> (diffAdvance(dydt, dt) ^ (finalT / dt))
 ];
-
 
 // switch
 condition = [

@@ -540,7 +540,7 @@ function alias(binding, value, overload) {
 	} else if (binding instanceof AST.ObjectDestructure) {
 		const { read } = currentScope;
 		for (const { key, name } of binding.fields)
-			alias(name, tryOperate(read, [value, key]), overload);
+			alias(name, tryOperate(read, [value, List.fromString(key)]), overload);
 	} else if (binding instanceof AST.ListDestructure) {
 		if (!(value instanceof List))
 			cannotUse(value, "as a list");
@@ -669,6 +669,7 @@ function evalStat(command) {
 	resetScopes();
 
 	const ast = parse(command);
+	
 	const { make } = AST;
 	ast.transform(AST.Assignment, ({ target, op, isClass, value }) => {
 		return make.Pipe(value, make.Alias(
@@ -766,7 +767,6 @@ function evalStat(command) {
 	});
 	ast.forEach(AST.DestructureField, field => {
 		if (!field.name) field.name = field.key;
-		field.key = evalExpression(make.StringValue(JSON.stringify(field.key)));
 	});
 
 	return evalBody(ast);

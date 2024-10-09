@@ -1,5 +1,5 @@
 evalStat(`
-GRAPH_ASPECT_RATIO = /(7, 8);
+GRAPH_ASPECT_RATIO = 7 / 8;
 GraphOperation = operator(2);
 Graph = GraphOperation();
 
