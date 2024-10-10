@@ -256,6 +256,7 @@ class Operator {
 		this.operandTypes = operands.map(op => op[0]);
 		this.operandNames = operands.map(op => op[1]);
 		this.operandDefaults = operands.map(op => op[2]);
+		this.operandGuards = operands.map(op => op[3]);
 		this.minOperands = 0;
 		for (let i = 0; i < this.operandDefaults.length; i++)
 			if (!this.operandDefaults[i])
@@ -344,7 +345,7 @@ class Operator {
 
 		const exactTypes = actualTypes.every((type, i) => type.equals(operandTypes[i]));
 		if (exactTypes) {
-			const result = this.method.apply(null, args) ?? VOID;
+			const result = this.method.apply(this, args) ?? VOID;
 			if (!topLevel && this.tailCall)
 				return tryOperateStackless(result[0], result[1]);
 			return result;
@@ -385,10 +386,11 @@ class Operator {
 			// sourceCode = this.sourceCode.toString();
 		}
 
-		let normalized = `[${this.operands.map(([type, name, value]) => {
+		let normalized = `[${this.operands.map(([type, name, value, guard]) => {
 			let result = type.ignore ? "" : type + " ";
 			result += typeof name === "string" ? name : name.textContent;
 			if (value) result += ": " + value.textContent;
+			if (guard) result += " where " + guard.textContent;
 			return result;
 		}).join(", ")} = ${sourceCode}]`;
 		if (this.overload) normalized += "\n& " + this.overload;
@@ -628,7 +630,7 @@ function evalExpression(expr) {
 					if (!(type instanceof Type))
 						cannotUse(type, "as a operand type");
 				} else type = new Type(null);
-				return [type, parameter.name, parameter.value];
+				return [type, parameter.name, parameter.value, parameter.guard];
 			});
 		}
 
@@ -636,7 +638,7 @@ function evalExpression(expr) {
 
 		const { tailCall } = expr;
 
-		const operator = new Operator(parameters, (...args) => {
+		const operator = new Operator(parameters, function (...args) {
 			const oldScopes = scopes;
 			
 			const scope = new Map();
@@ -644,6 +646,12 @@ function evalExpression(expr) {
 			
 			for (let i = 0; i < args.length; i++)
 				alias(parameters[i][1], args[i]);
+
+			for (let i = 0; i < operator.operandGuards.length; i++) {
+				const guard = operator.operandGuards[i];
+				if (guard && !evalExpression(guard))
+					this.fail(TypeError, `Guard '${guard.textContent}' failed for ${operator.operandNames[i]} = ${args[i]}`);
+			}
 			
 			const returnValue = evalBody(expr.body);
 			
@@ -725,7 +733,7 @@ function evalStat(command) {
 			])
 		);
 	});
-	ast.transform([AST.Prefix, AST.Composition, AST.Exponential, AST.Product, AST.Sum, AST.Compare, AST.Logic], node => {
+	ast.transform([AST.Prefix, AST.Composition, AST.Exponential, AST.Product, AST.Sum, AST.Type, AST.Compare, AST.Logic], node => {
 		const { op, ...rest } = node;
 		const args = Object.values(rest);
 		return make.Expression(

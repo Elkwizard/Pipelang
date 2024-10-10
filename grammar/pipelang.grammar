@@ -13,7 +13,7 @@ CharValue = value:char
 Value = NumberValue | StringValue | CharValue
 Field = key:identifier ":" value:Precedence
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
-Parameter = type:Expression? name:Name (":" value:Pipe)?
+Parameter = type:Expression? name:Name (":" value:Pipe)? ("where" guard:Pipe)?
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
 Nested = "$"? "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
@@ -31,6 +31,7 @@ Precedence = operators Expression {
 	right Exponential ("^" | "**")
 	left Product ("*" | "/" | "%")
 	left Sum ("+" | "-" | "#")
+	left Type ("in")
 	left Compare ("==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=")
 	left Logic ("&&" | "||" | "??")
 	custom Conditional (condition:last "?" ifTrue:Precedence ":" ifFalse:Conditional)

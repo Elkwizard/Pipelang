@@ -4,7 +4,7 @@
 		.map(line => "\t".repeat(n) + line)
 		.join("\n");
 
-	const prec = ["Composition", "Exponential", "Product", "Sum", "Compare", "Logic"].map(name => AST[name]);
+	const prec = ["Composition", "Exponential", "Product", "Sum", "Type", "Compare", "Logic"].map(name => AST[name]);
 	const assoc = ["right", "right", "left", "left", "left", "left"];
 	
 	for (const type of prec)
@@ -66,6 +66,7 @@
 		if (this.type) result += parens(this.type) + " ";
 		result += this.name;
 		if (this.value) result += ": " + this.value;
+		if (this.guard) result += " where " + this.guard;
 		return result;
 	};
 

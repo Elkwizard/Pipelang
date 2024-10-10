@@ -9,6 +9,10 @@ createType = [
 withOverload = [
 	operator a, operator b = a & b
 ];
+asOverloads = [
+	operator() ops = ops
+		|> reduce withOverload
+];
 of = [
 	operator f, operator g = f
 		|> operands
@@ -22,6 +26,13 @@ of = [
 ];
 identity = [
 	value = value
+];
+specify = [
+	operator impl, type() signature = signature
+		|> createOperator [
+			operator() ops = ops
+				|> unwrapCall impl
+		]
 ];
 commute = [
 	operator op = op
@@ -1893,7 +1904,7 @@ _getObjectEntries = [
 		]
 ];
 read = [
-	any struct, String name = struct
+	any struct where struct(0) |> in operator(2), String name = struct
 		|> decay
 		|> _getObjectEntries name
 		|> maybeFirst
@@ -2068,12 +2079,56 @@ toMatrix &= [
 		{ i, r }
 	}
 ];
+Re = [Complex_t z = z.r];
+Im = [Complex_t z = z.i];
 + &= [
 	Complex_t a, Complex_t b = Complex(a.r + b.r, a.i + b.i)
 ];
 + &= commute([
 	Complex_t a, real b = Complex(a.r + b, a.i)
 ]);
+- &= [
+	Complex_t z = Complex(-z.r, -z.i)
+];
+specifyComplex = [
+	operator op = op
+		|> specify {
+			{ Complex_t, Complex_t },
+			{ Complex_t, real },
+			{ real, Complex_t }
+		}
+		|> asOverloads
+];
+- &= specifyComplex([
+	a, b = b
+		|> -
+		|> + a
+]);
+* &= [
+	Complex_t a, Complex_t b = Complex(
+		a.r * b.r - a.i * b.i,
+		a.i * b.r + a.r * b.i
+	)
+];
+* &= commute([
+	Complex_t a, real b = Complex(a.r * b, a.i * b)
+]);
+/ &= specifyComplex([
+	a, b = b
+		|> reciprocal
+		|> * a
+]);
+norm &= [
+	Complex_t z = hypot(z.r, z.i)
+];
+conjugate &= [
+	Complex_t z = Complex(z.r, -z.i)
+];
+reciprocal &= [
+	Complex_t z = z
+		|> conjugate
+		|> / $(norm(z) ^ 2)
+];
 `.trim());
 
 const round = num => Math.round(num * 1e3) / 1e3;
