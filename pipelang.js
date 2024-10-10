@@ -327,15 +327,10 @@ class Operator {
 		return this.baseOperate(args, true);
 	}
 	baseOperate(args, topLevel = false) {
-		const { operandTypes } = this;
-
 		if (args.length < this.minOperands || args.length > this.maxOperands)
 			this.fail(TypeError, `No operator '${this.localName}' exists with ${args.length} operand${args.length === 1 ? "" : "s"}`);
-
-		while (args.length < this.maxOperands) {
-			const value = this.operandDefaults[args.length];
-			args.push(evalExpression(value));
-		}
+		
+		const operandTypes = this.operandTypes.slice(0, args.length);
 
 		const actualTypes = args.map(typeOf);
 
@@ -644,8 +639,8 @@ function evalExpression(expr) {
 			const scope = new Map();
 			scopes = [...closure, scope];
 			
-			for (let i = 0; i < args.length; i++)
-				alias(parameters[i][1], args[i]);
+			for (let i = 0; i < this.operands.length; i++)
+				alias(parameters[i][1], args[i] ?? evalExpression(this.operandDefaults[i]));
 
 			for (let i = 0; i < operator.operandGuards.length; i++) {
 				const guard = operator.operandGuards[i];

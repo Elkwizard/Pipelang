@@ -61,8 +61,8 @@ graphTitles = graphContinuation([
 ]);
 
 graphLines = graphContinuation([
-	real(2)() points = rangeTo(-(len(points), 1))
-		|> [real inx = { points(inx), points(+(inx, 1)) }]
+	real(2)() points = rangeTo(len(points) - 1)
+		|> [real inx = { points(inx), points(inx + 1) }]
 		|> [real(2)(2) line = graphLine(line(0), line(1)) |> first]
 ]);
 

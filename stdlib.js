@@ -144,7 +144,7 @@ flat = [
 		|> > 0
 		|> ? [= arr
 			|> reduce { } concat
-			|> flat -(depth, 1)
+			|> flat $(depth - 1)
 		] [= arr]
 ];
 repeat = [
@@ -249,9 +249,7 @@ count = [
 		|> len
 ];
 contains = [
-	real(2) { min, max }, real v = v
-		|> >= min
-		|> && <=(v, max) 
+	real(2) { min, max }, real v = min <= v && v <= max
 ];
 within = [
 	real v, real(2) range = range
@@ -312,12 +310,10 @@ both = [
 	value, operator op = { value, op(value) }
 ];
 reciprocal = [
-	real x = 1
-		|> / x
+	real x = 1 / x
 ];
 complement = [
-	real p = 1
-		|> - p
+	real p = 1 - p
 ];
 logBase = [
 	real base, real x = x
@@ -359,7 +355,7 @@ head = [
 	any() list = list(:-1)
 ];
 tail = [
-	any() list, real count = list(-(len(list), count):)
+	any() list, real count = list(len(list) - count:)
 ] & [
 	any() list = list(1:)
 ];
@@ -367,7 +363,7 @@ first = [
 	any() list = list(0)
 ];
 last = [
-	any() list = list(-(len(list), 1))
+	any() list = list(len(list) - 1)
 ];
 lerp = [
 	real t, real a, real b = t
@@ -425,7 +421,7 @@ sampVariance = [
 	real() list = list
 		|> - mean(list)
 		|> sumSquared
-		|> / -(len(list), 1)
+		|> / $(len(list) - 1)
 ];
 freqStdDev = [
 	real() list, real() freq = list
@@ -705,7 +701,7 @@ slopeTTest = [
 		|> * sides
 ];
 Fdf = [
-	real n, real k = { k, -(n, +(k, 1)) }
+	real n, real k = { k, n - (k + 1) }
 ];
 // SSRegr: df = k
 // SSResid: df = n - (k + 1)
@@ -748,8 +744,8 @@ FcdfIndefinite = [
 			|> + u
 			|> - 2
 			|> * x
-			|> / +(t1, *(4, t0))
-			|> pow /(1, 3)
+			|> / $(t1 + 4 * t0)
+			|> pow $(1 / 3)
 			|> - complement(t2)
 			|> / sqrt(t2)
 			|> normalcdfIndefinite
@@ -802,7 +798,7 @@ ANOVADf = [
 		|> is N
 		|> to ns
 		|> len
-		|> [real k = { -(k, 1), -(N, k) }]
+		|> [real k = { k - 1, N - k }]
 ];
 ANOVAF = [
 	real() means, real() stdDevs, real() ns = means
@@ -825,8 +821,8 @@ ANOVATable = [
 		|> to { SSTreatments(means, ns), SSError(stdDevs, ns) }
 		|> is SS
 		|> to {
-			{ df(0), SS(0), /(SS(0), df(0)), ANOVAF(means, stdDevs, ns), ANOVA(means, stdDevs, ns) },
-			{ df(1), SS(1), /(SS(1), df(1)), 0, 0 }
+			{ df(0), SS(0), SS(0) / df(0), ANOVAF(means, stdDevs, ns), ANOVA(means, stdDevs, ns) },
+			{ df(1), SS(1), SS(1) / df(1), 0, 0 }
 		}
 ];
 matrixMean = [
@@ -1176,7 +1172,7 @@ cofactors = [
 					real j = m
 						|> minor i j
 						|> determinant
-						|> * pow(-1, +(i, j))
+						|> * pow(-1, i + j)
 				]
 		]
 ];
@@ -1212,13 +1208,13 @@ addRowMultiple = [
 			real index = index
 				|> == dst
 				|> ? [= mat(index)
-					|> + *(mat(src), factor)
+					|> + $(mat(src) * factor)
 				] [= mat(index)]
 		]
 ];
 multiplyRow = [
 	real()() mat, real i, real factor = mat
-		|> addRowMultiple i i -(factor, 1)
+		|> addRowMultiple i i $(factor - 1)
 ];
 _echelonColumn = [
 	real()() mat, real c, real r = c
@@ -1390,7 +1386,7 @@ IQROutliers = [
 			real x = { x, clamp(x, Q(0), Q(2)) }
 				|> diff
 				|> abs
-				|> > *(Q(1), 1.5)
+				|> > $(Q(1) * 1.5)
 		]
 ];
 stdDevOutliers = [
@@ -1434,7 +1430,7 @@ linRegCoefs = [
 ];
 residual = [
 	real() point, operator model = point
-		|> head -(len(point), 1)
+		|> head $(len(point) - 1)
 		|> call model
 		|> * -1
 		|> + last(point)
@@ -1443,7 +1439,7 @@ stdDevResiduals = [
 	real(2)() points, operator model = points
 		|> residual model
 		|> sumSquared
-		|> / -(len(points), 2)
+		|> / $(len(points) - 2)
 		|> sqrt
 ];
 yCoord = [
@@ -1478,8 +1474,8 @@ rSquaredAdj = [
 	real()() points, operator model = points
 		|> SSResid model
 		|> / SSTotal(points)
-		|> * -(len(points), 1)
-		|> / -(len(points), +(len(points(0)), 1))
+		|> * $(len(points) - 1)
+		|> / $(len(points) - (len(points(0)) + 1))
 		|> complement
 ];
 residualPlot = [
@@ -1496,7 +1492,7 @@ probToOdds = [
 ];
 oddsToProb = [
 	real odds = odds
-	|> / +(1, odds)
+	|> / $(1 + odds)
 ];
 logit = [
 	real p = p
@@ -1564,8 +1560,8 @@ normalpdf = [
 		|> standardize mu sd
 		|> is z
 		|> to E
-		|> pow *(-0.5, pow(z, 2))
-		|> / sqrt(*(2, PI))
+		|> pow $(-0.5 * pow(z, 2))
+		|> / sqrt(2 * PI)
 ];
 normalcdfIndefinite = [
 	real z = z
@@ -1573,8 +1569,8 @@ normalcdfIndefinite = [
 		|> pow 2
 		|> * 0.0735
 		|> is s
-		|> + /(4, PI)
-		|> / +(s, 1)
+		|> + $(4 / PI)
+		|> / $(s + 1)
 		|> * pow(z, 2)
 		|> * -0.5
 		|> exp
@@ -1601,7 +1597,7 @@ invNorm = [
 		|> * 2
 		|> is s
 		|> * 0.0735
-		|> + /(4, PI)
+		|> + $(4 / PI)
 		|> is s2
 		|> to s
 		|> * -0.294
@@ -1610,7 +1606,7 @@ invNorm = [
 		|> - s2
 		|> / 0.147
 		|> sqrt
-		|> * sign(-(area, 0.5))
+		|> * sign(area - 0.5)
 		|> destandardize mu sd
 ];
 TcdfIndefinite = [
@@ -1634,12 +1630,12 @@ TcdfIndefinite = [
 			default([= x
 				|> pow 2
 				|> * 2
-				|> + *(4, df)
+				|> + $(4 * df)
 				|> is denom
 				|> to x
 				|> pow 2
 				|> - 1
-				|> + *(4, df)
+				|> + $(4 * df)
 				|> / denom
 				|> * x
 				|> normalcdfIndefinite
@@ -1687,7 +1683,7 @@ invT = [
 					|> * 2
 					|> / complement(term)
 					|> sqrt
-					|> * sign(-(area, 0.5))
+					|> * sign(area - 0.5)
 				])
 				default([= INVT_RANGE
 					|> binarySearch INVT_PRECISION [real x = TcdfIndefinite(x, df)] area
@@ -1738,13 +1734,13 @@ regularizedGamma = [
 X2cdf = [
 	real lower, real upper, real df = df
 		|> / 2
-		|> regularizedGamma /({ upper, lower }, 2) 
+		|> regularizedGamma $({ upper, lower } / 2) 
 		|> diff
 ];
 geometpdf = [
 	real x, real p = p
 		|> complement
-		|> pow -(x, 1)
+		|> pow $(x - 1)
 		|> * p
 ];
 geometcdf = [
@@ -1769,12 +1765,12 @@ nCr = [
 		|> + r
 		|> + 1
 		|> product
-		|> / factorial(-(n, r))
+		|> / factorial(n - r)
 ];
 binompdf = [
 	real x, real p, real trials = p
 		|> complement
-		|> pow -(trials, x)
+		|> pow $(trials - x)
 		|> * pow(p, x)
 		|> * nCr(trials, x)
 ];
