@@ -191,10 +191,12 @@ reverse = [
 		|> map [list(-i)]
 ];
 concat = [
-	any() a, any() b = len(a)
-		|> + len(b)
-		|> rangeTo
-		|> map [i < len(a) ? a(i) : b(i - len(a))]
+	any() a, any() b = len(a) + len(b)
+		|> is length
+		|> ? [= length
+			|> rangeTo
+			|> map [i < len(a) ? a(i) : b(i - len(a))]
+		] [= { }]
 ];
 append = [
 	any() a, any b = a
@@ -227,8 +229,13 @@ roundTo = [
 		|> / size
 ];
 isNaN = [
-	real n = n
-		|> != n
+	real n = n != n
+];
+isInteger = [
+	real n = n - floor(n) == 0
+];
+isFinite = [
+	real n = n - n == 0
 ];
 even = [
 	real n = n
@@ -1337,7 +1344,7 @@ maxAll = [
 ];
 bounds = [
 	real() list = list
-		|> apply { minAll, maxAll };
+		|> apply { minAll, maxAll }
 ];
 argMin = [
 	real() list = list
@@ -1900,7 +1907,7 @@ _getObjectEntries = [
 		]
 ];
 read = [
-	any struct where struct(0) |> in operator(2), String name = struct
+	any struct, String name = struct
 		|> decay
 		|> _getObjectEntries name
 		|> maybeFirst

@@ -61,12 +61,19 @@
 		return `${[this.operator, ...(this.arguments ?? [])].map(parens).join(" ")}`;
 	};
 
+	let inline = false;
+
 	AST.Parameter.prototype.toString = function () {
+		inline = true;
+
 		let result = "";
 		if (this.type) result += parens(this.type) + " ";
 		result += this.name;
 		if (this.value) result += ": " + this.value;
 		if (this.guard) result += " where " + this.guard;
+
+		inline = false;
+
 		return result;
 	};
 
@@ -84,6 +91,7 @@
 
 	AST.Pipe.prototype.toString = function () {
 		if (this.replace) return this.replace.toString();
+		if (inline) return `${this.source} |> ${this.step}`;
 		return `${this.source}\n${indent(`|> ${this.step}`)}`;
 	};
 

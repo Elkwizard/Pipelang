@@ -644,8 +644,10 @@ function evalExpression(expr) {
 
 			for (let i = 0; i < operator.operandGuards.length; i++) {
 				const guard = operator.operandGuards[i];
-				if (guard && !evalExpression(guard))
+				if (guard && !evalExpression(guard)) {
+					scopes = oldScopes;
 					this.fail(TypeError, `Guard '${guard.textContent}' failed for ${operator.operandNames[i]} = ${args[i]}`);
+				}
 			}
 			
 			const returnValue = evalBody(expr.body);
@@ -908,10 +910,6 @@ currentScope["keySort"] = new Operator([
 	[...list.elements]
 		.sort((a, b) => key.operate(a) - key.operate(b))
 ));
-
-currentScope["isFinite"] = new Operator([
-	[new Type("real"), "number"]
-], number => +isFinite(number));
 
 currentScope["len"] = new Operator([
 	[new Type("any", [null]), "list"]	
