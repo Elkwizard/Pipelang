@@ -644,9 +644,13 @@ function evalExpression(expr) {
 
 			for (let i = 0; i < operator.operandGuards.length; i++) {
 				const guard = operator.operandGuards[i];
-				if (guard && !evalExpression(guard)) {
-					scopes = oldScopes;
-					this.fail(TypeError, `Guard '${guard.textContent}' failed for ${operator.operandNames[i]} = ${args[i]}`);
+				const arg = args[i];
+				if (guard) {
+					const result = evalExpression(guard);
+					if (!(result instanceof Operator ? result.operate(arg) : guard)) {
+						scopes = oldScopes;
+						this.fail(TypeError, `Guard '${guard.textContent}' failed for ${operator.operandNames[i]} = ${arg}`);
+					}
 				}
 			}
 			

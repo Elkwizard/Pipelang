@@ -1,11 +1,18 @@
 evalStat(`
-// stdlib
+// types
 createType = [
 	type baseType, real() dims = dims
 		|> reduce baseType [
 			type acc, real dim = (dim == -1 ? acc() : acc(dim))
 		]
 ];
+in = [
+	any value, type cls = value
+		|> typeOf
+		|> convertibleTo cls
+];
+
+// operator manipulation
 withOverload = [
 	operator a, operator b = a & b
 ];
@@ -24,9 +31,6 @@ of = [
 ] & [
 	operator f, g = f(g)
 ];
-identity = [
-	value = value
-];
 specify = [
 	operator impl, type() signature = signature
 		|> createOperator [
@@ -34,7 +38,7 @@ specify = [
 				|> unwrapCall impl
 		]
 ];
-commute = [
+flip = [
 	operator op = op
 		|> operands
 		|> reverse
@@ -43,7 +47,14 @@ commute = [
 				|> reverse
 				|> unwrapCall op
 		]
-		|> withOverload op
+];
+commute = [
+	operator op = op & flip(op)
+];
+
+// simple operators
+identity = [
+	value = value
 ];
 ! = [
 	real condition = condition
@@ -78,18 +89,15 @@ commute = [
 		|> - 1
 ];
 - &= [
-	real number = 0
-		|> - number
+	real number = 0 - number
+];
+/ &= [
+	real number = 1 / number
 ];
 ?? = [
 	void a, b = b
 ] & [
 	a, b = a
-];
-in = [
-	any value, type cls = value
-		|> typeOf
-		|> convertibleTo cls
 ];
 random = random & [
 	real length = length
@@ -156,6 +164,9 @@ fill = [
 	any() list, operator generate = list
 		|> indices
 		|> [real index = generate()]
+];
+nthOf = [
+	real n, any() list = list(n)
 ];
 map = [
 	any() list, operator map = list
@@ -258,10 +269,7 @@ count = [
 contains = [
 	real(2) { min, max }, real v = min <= v && v <= max
 ];
-within = [
-	real v, real(2) range = range
-		|> contains v
-];
+within = flip(contains);
 diff = [
 	real(2) pair = pair(0)
 		|> - pair(1)
@@ -303,22 +311,17 @@ findSeqIn = [
 ];
 ln = log;
 log = log10;
+DEGREES_TO_RADIANS = PI / 180;
 degrees = [
-	real radians = radians
-		|> / PI
-		|> * 180
+	real radians = radians / DEGREES_TO_RADIANS
 ];
 radians = [
-	real degrees = degrees
-		|> / 180
-		|> * PI
+	real degrees = degrees * DEGREES_TO_RADIANS
 ];
 both = [
 	value, operator op = { value, op(value) }
 ];
-reciprocal = [
-	real x = 1 / x
-];
+reciprocal = /;
 complement = [
 	real p = 1 - p
 ];
@@ -342,9 +345,6 @@ randInt = [
 ];
 axis = [
 	real() vector, real n = vector(n)
-];
-nthOf = [
-	real n, any() list = list(n)
 ];
 sliceOf = [
 	real(2) n, any() list = list(n(0):n(1))
