@@ -49,7 +49,7 @@ class Type {
 			this.dimensions.map((d, i) => d !== other.dimensions[i] ? null : d)
 		);
 	}
-	equals(type) {
+	convertibleTo(type) {
 		if (type.ignore) return true;
 		
 		if (type.baseType === "any") {
@@ -338,7 +338,7 @@ class Operator {
 		if (!correctTypes)
 			this.fail(OperandError, this.localName, actualTypes);
 
-		const exactTypes = actualTypes.every((type, i) => type.equals(operandTypes[i]));
+		const exactTypes = actualTypes.every((type, i) => type.convertibleTo(operandTypes[i]));
 		if (exactTypes) {
 			const result = this.method.apply(this, args) ?? VOID;
 			if (!topLevel && this.tailCall)
@@ -573,7 +573,7 @@ function evalExpression(expr) {
 	}
 
 	if (expr instanceof AST.StringValue)
-		return List.fromString(JSON.parse(expr.value));
+		return List.fromString(expr.string);
 
 	if (expr instanceof AST.NumberValue)
 		return +expr.value;
@@ -647,7 +647,7 @@ function evalExpression(expr) {
 				const arg = args[i];
 				if (guard) {
 					const result = evalExpression(guard);
-					if (!(result instanceof Operator ? result.operate(arg) : guard)) {
+					if (!(result instanceof Operator ? result.operate(arg) : result)) {
 						scopes = oldScopes;
 						this.fail(TypeError, `Guard '${guard.textContent}' failed for ${operator.operandNames[i]} = ${arg}`);
 					}
@@ -777,6 +777,11 @@ function evalStat(command) {
 	ast.forEach(AST.DestructureField, field => {
 		if (!field.name) field.name = field.key;
 	});
+	ast.forEach(AST.StringValue, str => {
+		str.string = JSON.parse(str.value.replace(
+			/[\x00-\x1f]/g, char => JSON.stringify(char).slice(1, -1)
+		));
+	});
 
 	return evalBody(ast);
 }
@@ -790,7 +795,7 @@ for (const type of primitiveTypes)
 currentScope["convertibleTo"] = new Operator([
 	[new Type("type"), "src"],
 	[new Type("type"), "dst"]
-], (src, dst) => +src.equals(dst));
+], (src, dst) => +src.convertibleTo(dst));
 
 currentScope["commonWith"] = new Operator([
 	[new Type("type"), "a"],
@@ -961,7 +966,7 @@ currentScope["==="] = new Operator([
 	if (a instanceof List) {
 		if (a.length !== b.length) return 0;
 		if (!a.length) return 1;
-		if (!typeOf(a).equals(typeOf(b))) return 0;
+		if (!typeOf(a).convertibleTo(typeOf(b))) return 0;
 		return +recurseEqual(a, b);
 	}
 	return +(a === b);

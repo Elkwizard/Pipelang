@@ -11,8 +11,38 @@ in = [
 		|> typeOf
 		|> convertibleTo cls
 ];
+isList = [
+	value, real dim: 1 = value
+		|> typeOf
+		|> dimensions
+		|> len
+		|> >= dim
+];
 
 // operator manipulation
+Operands = operator();
+curry = [
+	operator op = op
+		|> operands
+		|> is types
+		|> indices
+		|> + 1
+		|> [
+			real amount = amount == len(types)
+				|> ? [= op] [= types(:amount)
+					|> createOperator [
+						Operands ops = types(amount:)
+							|> createOperator [
+								Operands finalOps = ops
+									|> concat finalOps
+									|> unwrapCall op
+							]
+							|> curry
+					]
+				]
+		]
+		|> asOverloads
+];
 withOverload = [
 	operator a, operator b = a & b
 ];
@@ -24,7 +54,7 @@ of = [
 	operator f, operator g = f
 		|> operands
 		|> createOperator [
-			operator() ops = ops
+			Operands ops = ops
 				|> unwrapCall f
 				|> g
 		]
@@ -34,7 +64,7 @@ of = [
 specify = [
 	operator impl, type() signature = signature
 		|> createOperator [
-			operator() ops = ops
+			Operands ops = ops
 				|> unwrapCall impl
 		]
 ];
@@ -43,7 +73,7 @@ flip = [
 		|> operands
 		|> reverse
 		|> createOperator [
-			operator() ops = ops
+			Operands ops = ops
 				|> reverse
 				|> unwrapCall op
 		]
@@ -68,7 +98,7 @@ identity = [
 		op
 			|> operands
 			|> createOperator [
-				operator() args = args
+				Operands ops = ops
 					|> first
 					|> unwrap
 					|> multiCall exponent
@@ -1366,16 +1396,16 @@ apply = [
 		|> fn
 ];
 call = [
-	any() args, operator op = args
+	any() ops, operator op = ops
 		|> map wrap
 		|> unwrapCall op
 ];
 on = [
-	operator op, any() args = args
+	operator op, any() ops = ops
 		|> call op
 ];
 unwrapOn = [
-	operator op, operator() args = args
+	operator op, Operands ops = ops
 		|> unwrapCall op
 ];
 wrap = [
@@ -1907,11 +1937,15 @@ _getObjectEntries = [
 		]
 ];
 read = [
-	any struct, String name = struct
+	Object struct, String name = struct
 		|> decay
 		|> _getObjectEntries name
 		|> maybeFirst
 		|> maybe [Field entry = entry(1)(struct)]
+] & [
+	primitive struct, String name = struct
+		|> decay
+		|> read name
 ];
 has = [
 	Object struct, String name = struct
