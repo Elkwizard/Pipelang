@@ -730,7 +730,7 @@ function evalStat(command) {
 			make.Reference(method ? "method" : "field"),
 			make.Arguments([
 				make.StringValue(JSON.stringify(key)),
-				value
+				value ?? make.Reference(key)
 			])
 		);
 	});
