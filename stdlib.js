@@ -83,7 +83,7 @@ commute = [
 ];
 
 // simple operators
-identity = [
+$ = identity = [
 	value = value
 ];
 ! = [
@@ -205,12 +205,12 @@ nthOf = [
 	real n, any() list = list(n)
 ];
 map = [
-	any() list, operator map = list
+	any() list, operator fn = list
 		|> indices
 		|> [
 			real index = index
 				|> nthOf list
-				|> map
+				|> fn
 		]
 ];
 effect = [
@@ -235,14 +235,14 @@ reverse = [
 	any() list = list
 		|> indices
 		|> + 1
-		|> map [list(-i)]
+		|> [real index = list(-index)]
 ];
 concat = [
 	any() a, any() b = len(a) + len(b)
 		|> is length
 		|> ? [= length
 			|> rangeTo
-			|> map [i < len(a) ? a(i) : b(i - len(a))]
+			|> [real index = index < len(a) ? a(index) : b(index - len(a))]
 		] [= { }]
 ];
 append = [
@@ -1095,8 +1095,8 @@ identityMatrix = [
 		|> rangeTo
 		|> is indices
 		|> [
-			real row = row
-				|> == indices
+			real row = indices
+				|> [real idx = idx == row]
 		]
 ];
 permutationMatrix = [
@@ -1907,7 +1907,7 @@ split = [
 	String str, String delim = delim
 		|> findSeqIn str
 		|> is index
-		|> == -1
+		|> == no
 		|> ? [= { str }] [= { str(:index) }
 			|> concat split(str(index + len(delim):), delim)
 		]
@@ -1917,7 +1917,7 @@ join = [
 		|> reduce "" [
 			String acc, String element = acc
 				|> len
-				|> ? [= (acc # delim # element)] [= element]
+				|> ? [= acc # delim # element] [= element]
 		]
 ];
 replaceAll = [
@@ -1932,6 +1932,42 @@ replace = [
 		|> == -1
 		|> ? [= str] [= str(:index) # replace # str(index + len(find):)]
 ];
+WHITESPACE = "\t\n\r ";
+trimStart = [
+	String str, String chars: WHITESPACE = str(0)
+		|> findIn WHITESPACE
+		|> == no
+		|> ? [= str] [= str(1:)
+			|> trimStart
+		]
+];
+trimEnd = [
+	String str, String chars: WHITESPACE = str
+		|> reverse
+		|> trimStart chars
+		|> reverse
+];
+trim = [
+	String str, String chars: WHITESPACE = str
+		|> trimStart chars
+		|> trimEnd chars
+];
+excel = [
+	String str = 
+		dataSplit = [
+			String str, String delim = str
+				|> split delim
+				|> is pieces
+				|> len
+				|> == 1
+				|> ? [= pieces(0)] [= pieces]
+		];
+		str
+			|> trim
+			|> dataSplit "\n"
+			|> dataSplit "\t"
+			|> int
+];
 INTEGER_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
 int = [
 	String str, real radix: 10 = str(0) == '-'
@@ -1943,7 +1979,7 @@ int = [
 			|> indices
 			|> reverse
 			|> zipWith toLowerCase(str)
-			|> map [
+			|> [
 				real(2) { index, character } = character
 					|> findIn INTEGER_ALPHABET(:radix)
 					|> * $(radix ^ index)
@@ -2105,7 +2141,7 @@ createClass = [
 			|> createOperator [
 				operator() args = args
 					|> indices
-					|> map [
+					|> [
 						real index = fields(index)
 							|> field args(index)()
 					]
@@ -2130,20 +2166,20 @@ extends = [
 	Object base, Object template = base
 		|> concat template
 ];
+elements = [
+	primitive value = value
+		|> decay
+		|> values
+		|> unwrap
+];
 elementWise = [
 	operator construct, operator op = 
 		ValueType = class(construct);
 		[
 			ValueType left, ValueType right = { left, right }
-				|> map [
-					ValueType side = side
-						|> decay
-						|> values
-						|> unwrap
-				]
+				|> elements
 				|> mix op
-				|> map wrap
-				|> unwrapCall construct
+				|> call construct
 		]
 ];
 
@@ -2153,7 +2189,9 @@ class Complex = {
 	i: real
 };
 Complex_t = class(Complex);
+Complex &= [real r = Complex(r, 0)];
 I = Complex(0, 1);
+
 toMatrix &= [
 	Complex_t { r:, i: } = {
 		{ r, -i },
@@ -2265,7 +2303,7 @@ currentScope["linReg"] = new Operator([
 			[new Type("real"), "x"]
 		], x => a + b * x);
 
-		operator.sourceCode = `(${round(a)} + ${round(b)} * x) /* r: ${round(r)}, r²: ${round(r ** 2)} */`;
+		operator.sourceCode = `${round(a)} + ${round(b)} * x /* r: ${round(r)}, r²: ${round(r ** 2)} */`;
 
 		return operator;
 	} else {
@@ -2306,7 +2344,7 @@ currentScope["linReg"] = new Operator([
 // 	BUCKET_WIDTH = 30;
 // 	data = rangeTo 400
 // 		|> fill random;
-// 		// |> map [real z = z |> - 0.5 |> * 6 |> invNorm 0 1];
+// 		// |> [real z = z |> - 0.5 |> * 6 |> invNorm 0 1];
 // 	bucketSize = data
 // 		|> range
 // 		|> / HISTOGRAM_BUCKETS;

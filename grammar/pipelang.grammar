@@ -1,9 +1,9 @@
 comment = hidden /\s+|\/\/.*|\/\*([\w\W]*?)\*\//
 string = /"((\\.)*([\w\W]*?))*?"/
 char = /'\\?.'/
-symbol = /[{}()\[\];,:.$]|\|>|(=(?!=))/
+symbol = /[{}()\[\];,:.]|\|>|(=(?!=))/
 number = /\-?\b(\d+(\.\d+)?|\.\d+)([eE][\+\-]?\d+)?\b/g
-identifier = /\w+|\|+|[^\w\s(){}\[\]|'",:;.$]+/
+identifier = /\w+|\|+|[^\w\s(){}\[\]|'",:;.$]+|\$/
 
 // base expressions
 Reference = name:identifier
@@ -15,7 +15,7 @@ Field = key:identifier ":" value:Precedence?
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
 Parameter = type:Expression? name:Name (":" value:Pipe)? ("where" guard:Pipe)?
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
-Nested = "$"? "(" replace:Precedence ")"
+Nested = "(" replace:Precedence ")"
 BaseExpression = Nested | Operator | List | Reference | Value
 Index = "(" start:Precedence? ":" end:Precedence? ")"
 Arguments = "(" arguments:Precedence[","] ")"

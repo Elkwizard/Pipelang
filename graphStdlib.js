@@ -177,7 +177,7 @@ graphExperiment = [
 			|> graphColor color(0)
 			|> graphRegression points model
 			|> display;
-		model;
+		model
 ];
 
 graphNormalProbability = graphContinuation([
