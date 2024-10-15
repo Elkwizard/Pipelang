@@ -399,6 +399,12 @@ class Operator {
 	}
 }
 
+class Link {
+	constructor(name) {
+		this.name = name;
+	}
+}
+
 function typeOf(value) {
 	switch (value.constructor) {
 		case Number:
@@ -449,6 +455,8 @@ const currentScope = new Proxy({}, {
 			if (scopes[i].has(key)) {
 				const value = scopes[i].get(key);
 				if (value !== undefined) {
+					if (value instanceof Link)
+						return currentScope[value.name];
 					if (value instanceof Operator)
 						value.localName = key;
 					return value;
@@ -470,8 +478,8 @@ const currentScope = new Proxy({}, {
 function getAllVariables() {
 	const variables = new Map();
 	for (const scope of scopes)
-		for (const [key, value] of scope)
-			variables.set(key, value);
+		for (const [key] of scope)
+			variables.set(key, currentScope[key]);
 	return variables;
 }
 
@@ -555,6 +563,11 @@ function alias(binding, value, overload) {
 }
 
 function evalExpression(expr) {
+	if (expr instanceof AST.Link) {
+		currentScope[expr.name] = new Link(expr.source);
+		return VOID;
+	}
+
 	if (expr instanceof AST.Pipe) {
 		const { source, step } = expr;
 		let init = evalExpression(source);
@@ -864,8 +877,8 @@ for (const name of ["no", "null", "nil", "nada", "zilch", "NA", "nullptr"])
 	currentScope[name] = VOID;
 
 for (const op of [
-	"+", "-", "*", "/", "%", "**",
-	"&&", "||", "==", "!=", "<=", ">=", "<", ">"
+	"+", "-", "*", "/", "%",
+	"&&", "||", "<=", ">=", "<", ">"
 ]) {
 	currentScope[op] = new Operator([
 		[new Type("real"), "a"],
@@ -943,7 +956,7 @@ currentScope["toString"] = new Operator([
 	return new List(charCodes);
 });
 
-currentScope["==="] = new Operator([
+currentScope["=="] = new Operator([
 	[new Type("any"), "a"],
 	[new Type("any"), "b"]
 ], (a, b) => {

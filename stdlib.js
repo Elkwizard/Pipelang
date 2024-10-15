@@ -90,8 +90,9 @@ identity = [
 	real condition = condition
 		|> == false
 ];
+** = pow;
 ** &= [
-	operator op, real exponent = 
+	operator op, real exponent where isInteger = 
 		multiCall = [
 			value, count = (count > 0 ? op(multiCall(value, count - 1)) : value)
 		];
@@ -104,10 +105,11 @@ identity = [
 					|> multiCall exponent
 			]
 ];
-^ = **;
-!== = [
+link ^ = **;
+link pow = **;
+!= = [
 	any a, any b = a
-		|> === b
+		|> == b
 		|> !
 ];
 ++ = [
@@ -124,6 +126,7 @@ identity = [
 / &= [
 	real number = 1 / number
 ];
+link reciprocal = /;
 ?? = [
 	void a, b = b
 ] & [
@@ -164,6 +167,9 @@ zip = [
 					real rIndex = grid(rIndex)(cIndex)
 				]
 		]
+];
+zipWith = [
+	any() x, any() y = zip({ x, y })
 ];
 swap = [
 	any() list, real i, real j = list
@@ -223,7 +229,7 @@ some = [
 empty = [
 	any() list = list
 		|> len
-		|> === 0
+		|> == 0
 ];
 reverse = [
 	any() list = list
@@ -273,7 +279,7 @@ isNaN = [
 	real n = n != n
 ];
 isInteger = [
-	real n = n - floor(n) == 0
+	real n = n - trunc(n) == 0
 ];
 isFinite = [
 	real n = n - n == 0
@@ -292,7 +298,7 @@ count = [
 	any() list, value = list
 		|> filter [
 			element = element
-				|> === value
+				|> == value
 		]
 		|> len
 ];
@@ -300,24 +306,27 @@ contains = [
 	real(2) { min, max }, real v = min <= v && v <= max
 ];
 within = flip(contains);
+mix = [
+	any(2) { left, right }, operator op = op(left, right)
+];
 diff = [
-	real(2) pair = pair(0)
-		|> - pair(1)
+	real(2) pair = pair
+		|> mix -
 ];
 ratio = [
-	real(2) pair = pair(0)
-		|> / pair(1)
+	real(2) pair = pair
+		|> mix /
 ];
 findAllIn = [
 	any value, any() list = list
 		|> indices
-		|> filter [list(i) === value]
+		|> filter [list(i) == value]
 ];
 findAllSeqIn = [
 	any() seq, any() list = seq(0)
 		|> findAllIn list
 		|> filter [i <= len(list) - len(seq)]
-		|> filter [list(i:i + len(seq)) === seq]
+		|> filter [list(i:i + len(seq)) == seq]
 ];
 maybeFirst = [
 	any() list = list
@@ -328,6 +337,11 @@ maybe = [
 	void value, operator fn = value
 ] & [
 	value, operator fn = fn(value)
+];
+find = [
+	any() list, operator match = list
+		|> filter match
+		|> maybeFirst
 ];
 findIn = [
 	any value, any() list = value
@@ -351,12 +365,11 @@ radians = [
 both = [
 	value, operator op = { value, op(value) }
 ];
-reciprocal = /;
 complement = [
 	real p = 1 - p
 ];
 logBase = [
-	real base, real x = x
+	real x, real base = x
 		|> ln
 		|> / ln(base)
 ];
@@ -1847,7 +1860,7 @@ condition = [
 	operator check, operator expr = { check, expr } 
 ];
 case = [
-	check, operator expr = { [value = check |> === value], expr }
+	check, operator expr = { [value = check |> == value], expr }
 ];
 default = [
 	operator expr = { [value = true], expr }
@@ -1919,6 +1932,25 @@ replace = [
 		|> == -1
 		|> ? [= str] [= str(:index) # replace # str(index + len(find):)]
 ];
+INTEGER_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
+int = [
+	String str, real radix: 10 = str(0) == '-'
+		|> ? [= str
+			|> tail
+			|> int radix
+			|> * -1
+		] [= str
+			|> indices
+			|> reverse
+			|> zipWith toLowerCase(str)
+			|> map [
+				real(2) { index, character } = character
+					|> findIn INTEGER_ALPHABET(:radix)
+					|> * $(radix ^ index)
+			]
+			|> sum
+		]
+] & round;
 
 // objects
 Field = operator(2);
@@ -1929,18 +1961,14 @@ field = [
 method = [
 	String name, operator fn = { [= name], fn }
 ];
-_getObjectEntries = [
+_getObjectEntry = [
 	Object struct, String name = struct
-		|> filter [
-			Field entry = entry(0)()
-				|> === name
-		]
+		|> find [Field entry = entry(0)() == name]
 ];
 read = [
 	Object struct, String name = struct
 		|> decay
-		|> _getObjectEntries name
-		|> maybeFirst
+		|> _getObjectEntry name
 		|> maybe [Field entry = entry(1)(struct)]
 ] & [
 	primitive struct, String name = struct
@@ -1949,9 +1977,8 @@ read = [
 ];
 has = [
 	Object struct, String name = struct
-		|> _getObjectEntries name
-		|> empty
-		|> !
+		|> _getObjectEntry name
+		|> != no
 ];
 with = [
 	Object struct, String name, value = struct
@@ -1959,7 +1986,7 @@ with = [
 		|> ? [= struct
 			|> filter [
 				Field entry = entry(0)()
-					|> !== name
+					|> != name
 			]
 		] [= struct]
 		|> append field(name, value)
@@ -2039,7 +2066,7 @@ _getEntries = [
 		|> % len(table)
 		|> nthOf table
 		|> [entries = entries()]
-		|> filter [operator(2) pair = pair(0)() |> === key]
+		|> filter [operator(2) pair = pair(0)() |> == key]
 ];
 
 hasKey = [
@@ -2091,7 +2118,7 @@ createClass = [
 					|> [
 						String name = struct
 							|> read name
-							|> assert !== no $("Field '" # name # "' is missing")
+							|> assert != no $("Field '" # name # "' is missing")
 							|> wrap
 					]
 					|> unwrapCall construct
@@ -2103,6 +2130,22 @@ extends = [
 	Object base, Object template = base
 		|> concat template
 ];
+elementWise = [
+	operator construct, operator op = 
+		ValueType = class(construct);
+		[
+			ValueType left, ValueType right = { left, right }
+				|> map [
+					ValueType side = side
+						|> decay
+						|> values
+						|> unwrap
+				]
+				|> mix op
+				|> map wrap
+				|> unwrapCall construct
+		]
+];
 
 // complex
 class Complex = {
@@ -2110,23 +2153,35 @@ class Complex = {
 	i: real
 };
 Complex_t = class(Complex);
+I = Complex(0, 1);
 toMatrix &= [
 	Complex_t { r:, i: } = {
 		{ r, -i },
 		{ i, r }
 	}
 ];
+norm &= [
+	Complex_t z = hypot(z.r, z.i)
+];
+conjugate &= [
+	Complex_t z = Complex(z.r, -z.i)
+];
+argument &= [
+	Complex_t z = atan2(z.i, z.r)
+];
+ln &= [
+	Complex_t z = z
+		|> norm
+		|> ln
+		|> Complex argument(z)
+];
+exp &= [
+	Complex_t z = Complex(cos(z.i), sin(z.i))
+		|> * exp(z.r)
+];
 Re = [Complex_t z = z.r];
 Im = [Complex_t z = z.i];
-+ &= [
-	Complex_t a, Complex_t b = Complex(a.r + b.r, a.i + b.i)
-];
-+ &= commute([
-	Complex_t a, real b = Complex(a.r + b, a.i)
-]);
-- &= [
-	Complex_t z = Complex(-z.r, -z.i)
-];
+
 specifyComplex = [
 	operator op = op
 		|> specify {
@@ -2136,36 +2191,38 @@ specifyComplex = [
 		}
 		|> asOverloads
 ];
-- &= specifyComplex([
-	a, b = b
-		|> -
-		|> + a
+
++ &= [
+	Complex_t a, Complex_t b = Complex(a.r + b.r, a.i + b.i);
+] & commute([
+	Complex_t a, real b = Complex(a.r + b, a.i)
 ]);
+
+- &= [
+	Complex_t z = Complex(-z.r, -z.i)
+] & specifyComplex([a, b = a + -b]);
+
 * &= [
 	Complex_t a, Complex_t b = Complex(
 		a.r * b.r - a.i * b.i,
 		a.i * b.r + a.r * b.i
 	)
-];
-* &= commute([
+] & commute([
 	Complex_t a, real b = Complex(a.r * b, a.i * b)
 ]);
-/ &= specifyComplex([
-	a, b = b
-		|> reciprocal
-		|> * a
-]);
-norm &= [
-	Complex_t z = hypot(z.r, z.i)
-];
-conjugate &= [
-	Complex_t z = Complex(z.r, -z.i)
-];
-reciprocal &= [
+
+/ &= [
 	Complex_t z = z
 		|> conjugate
 		|> / $(norm(z) ^ 2)
-];
+] & specifyComplex([a, b = a * /b]);
+
+** &= specifyComplex([
+	a, b = a
+		|> ln
+		|> * b
+		|> exp
+]);
 `.trim());
 
 const round = num => Math.round(num * 1e3) / 1e3;
@@ -2173,7 +2230,7 @@ const round = num => Math.round(num * 1e3) / 1e3;
 currentScope["linReg"] = new Operator([
 	[new Type("real", [null, null]), "points"]
 ], points => {
-	if (points.toArray()[0].length === 2) {
+	if (points.toArray()[0].length == 2) {
 		const [x, y] = currentScope.zip.operate(points).toArray();
 		points = points.toArray();
 

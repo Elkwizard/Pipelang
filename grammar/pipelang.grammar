@@ -52,6 +52,7 @@ Reset = "to" value:Expression
 Call = operator:Expression arguments:Expression*
 
 // statements
-Body = statements:Precedence{";"} ";"?
+Link = "link" name:identifier "=" source:identifier
+Body = statements:(Link | Precedence){";"} ";"?
 
 root = Body
