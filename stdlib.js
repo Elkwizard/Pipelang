@@ -87,8 +87,7 @@ $ = identity = [
 	value = value
 ];
 ! = [
-	real condition = condition
-		|> == false
+	real condition = condition == false
 ];
 ** = pow;
 ** &= [
@@ -111,6 +110,12 @@ link pow = **;
 	any a, any b = a
 		|> == b
 		|> !
+];
+=== = [
+	primitive a, primitive b = a == b
+];
+!== = [
+	primitive a, primitive b = a != b
 ];
 ++ = [
 	real number = number
@@ -1085,19 +1090,11 @@ angleBetween = [
 ];
 
 // matrices
-isMatrix =	[real()() mat = false] &
-			[rest = false];
-isVector =	[real()() mat = false] &
-			[real() vec = true] &
-			[rest = false];
 identityMatrix = [
 	real dim = dim
 		|> rangeTo
 		|> is indices
-		|> [
-			real row = indices
-				|> [real idx = idx == row]
-		]
+		|> [real row = indices === row]
 ];
 permutationMatrix = [
 	real() order = order

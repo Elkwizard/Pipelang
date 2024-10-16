@@ -129,24 +129,12 @@ function getSuggestions(identifier) {
 	}
 
 	const syncHighlight = () => {
-		let { value, selectionEnd } = command;
-		const mark = "\x01";
-		value = value.replaceAll(mark, "");
-		value = value.slice(0, selectionEnd) + mark + value.slice(selectionEnd);
-		value = value.replace(/(\x01)(\w+)/, "$2$1");
-		commandHighlight.innerHTML = applyFormat(highlight(value, CODE_COLORS))
-			.replaceAll("\x01", `<span id="selection"></span>`);
+		const { value } = command;
+		commandHighlight.innerHTML = applyFormat(highlight(value, CODE_COLORS));
 		command.style.height = getComputedStyle(commandHighlight).height;
 		command.scrollIntoView();
-
-		{
-			// const selection = document.getElementById("selection");
-			// const { x, y } = selection.getBoundingClientRect();
-			// suggestions.style.left = `${x}px`;
-			// suggestions.style.top = `${y}px`;
-			
-			updateSuggestions();	
-		}
+		
+		updateSuggestions();
 	};
 
 	const insertAtSelection = (str, remove = 0, after = "") => {
