@@ -266,7 +266,7 @@ class Operator {
 		this.maxOperands = this.operands.length;
 		this.method = method;
 		this.tailCall = tailCall;
-		this.sourceCode = "...";
+		this.sourceCode = null;
 		this.localName = "anonymous";
 	}
 	set localName(name) {
@@ -376,16 +376,15 @@ class Operator {
 	}
 	toString() {
 		let { sourceCode } = this;
-		if (sourceCode instanceof AST) {
+		if (sourceCode)
 			sourceCode = format(sourceCode.textContent.replace(/\s+/g, " "));
-			// sourceCode = this.sourceCode.toString();
-		}
+		else sourceCode = "...";
 
 		let normalized = `[${this.operands.map(([type, name, value, guard]) => {
 			let result = type.ignore ? "" : type + " ";
 			result += typeof name === "string" ? name : name.textContent;
-			if (value) result += ": " + value.textContent;
-			if (guard) result += " where " + guard.textContent;
+			if (value) result += ": " + value.toString();
+			if (guard) result += " where " + guard.toString();
 			return result;
 		}).join(", ")} = ${sourceCode}]`;
 		if (this.overload) normalized += "\n& " + this.overload;
@@ -625,22 +624,15 @@ function evalExpression(expr) {
 	}
 
 	if (expr instanceof AST.Operator) {
-		let parameters;
-		if (expr.templateNames) {
-			parameters = expr.templateNames
-				.filter(name => !(name in currentScope))
-				.map(name => [new Type(null), name]);
-		} else {
-			parameters = (expr.parameters ?? []).map(parameter => {
-				let type;
-				if (parameter.type) {
-					type = evalExpression(parameter.type);
-					if (!(type instanceof Type))
-						cannotUse(type, "as a operand type");
-				} else type = new Type(null);
-				return [type, parameter.name, parameter.value, parameter.guard];
-			});
-		}
+		const parameters = (expr.parameters ?? []).map(parameter => {
+			let type;
+			if (parameter.type) {
+				type = evalExpression(parameter.type);
+				if (!(type instanceof Type))
+					cannotUse(type, "as a operand type");
+			} else type = new Type(null);
+			return [type, parameter.name, parameter.value, parameter.guard];
+		});
 
 		const closure = [...scopes];
 
@@ -768,12 +760,7 @@ function evalStat(command) {
 	});
 	ast.transform(AST.Operator, op => {
 		if (!(op.body instanceof AST.Body)) {
-			op.templateNames = new Set();
-			op.body.forEach([AST.Operator, AST.Reference], node => {
-				if (node instanceof AST.Operator) return false;
-				op.templateNames.add(node.name)
-			});
-			op.templateNames = [...op.templateNames];
+			op.parameters = [make.Parameter(undefined, "$", make.Reference("no"))];
 			op.body = make.Body([op.body]).from(op.body);
 		}
 		return op;

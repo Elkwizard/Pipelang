@@ -325,13 +325,13 @@ ratio = [
 findAllIn = [
 	any value, any() list = list
 		|> indices
-		|> filter [list(i) == value]
+		|> filter [list($) == value]
 ];
 findAllSeqIn = [
 	any() seq, any() list = seq(0)
 		|> findAllIn list
-		|> filter [i <= len(list) - len(seq)]
-		|> filter [list(i:i + len(seq)) == seq]
+		|> filter [$ <= len(list) - len(seq)]
+		|> filter [list($:$ + len(seq)) == seq]
 ];
 maybeFirst = [
 	any() list = list
@@ -2198,7 +2198,9 @@ class Complex = {
 	i: real
 };
 Complex_t = class(Complex);
-Complex &= [real r = Complex(r, 0)];
+Complex &= [
+	real r = Complex(r, 0)
+];
 I = Complex(0, 1);
 
 toMatrix &= [
