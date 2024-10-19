@@ -685,6 +685,11 @@ function evalStat(command) {
 	const ast = parse(command);
 	
 	const { make } = AST;
+	ast.transform(AST.Function, ({ name, parameters, body }) => {
+		return make.Assignment(undefined, name, "=", make.Operator(
+			parameters, make.Body([body]).from(body)
+		));
+	});
 	ast.transform(AST.Assignment, ({ target, op, isClass, value }) => {
 		return make.Pipe(value, make.Alias(
 			op === "&=" ? "&" : undefined,

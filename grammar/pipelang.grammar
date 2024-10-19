@@ -53,6 +53,7 @@ Call = operator:Expression arguments:Expression*
 
 // statements
 Link = "link" name:identifier "=" source:identifier
-Body = statements:(Link | Precedence){";"} ";"?
+Function = name:identifier "(" parameters:Parameter[","] ")" "=" body:Precedence
+Body = statements:(Link | Function | Precedence){";"} ";"?
 
 root = Body
