@@ -1,5 +1,5 @@
 comment = hidden /\s+|\/\/.*|\/\*([\w\W]*?)\*\//
-string = /"((\\.)*([\w\W]*?))*?"/
+string = /r?"((\\.)*([\w\W]*?))*?"/
 char = /'\\?.'/
 symbol = /[{}()\[\];,:.]|\|>|(=(?!=))/
 number = /\-?\b(\d+(\.\d+)?|\.\d+)([eE][\+\-]?\d+)?\b/g
@@ -27,7 +27,7 @@ Expression = base:Expression step:Suffix | BaseExpression
 // precedence expressions
 Precedence = operators Expression {
 	prefix Prefix ("-" | "/" | "!" | "++" | "--")
-	right Composition ("of")
+	right Composition ("of" | "as")
 	right Exponential ("^" | "**")
 	left Product ("*" | "/" | "%")
 	left Sum ("+" | "-" | "#")

@@ -791,7 +791,9 @@ function evalStat(command) {
 		if (!field.name) field.name = field.key;
 	});
 	ast.forEach(AST.StringValue, str => {
-		str.string = JSON.parse(str.value.replace(
+		const { value } = str;
+		if (value[0] === "r") str.string = value.slice(2, -1);
+		else str.string = JSON.parse(value.replace(
 			/[\x00-\x1f]/g, char => JSON.stringify(char).slice(1, -1)
 		));
 	});

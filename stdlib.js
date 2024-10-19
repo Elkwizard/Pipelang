@@ -101,7 +101,7 @@ $ = identity = [
 				Operands ops = ops
 					|> first
 					|> unwrap
-					|> multiCall exponent
+					|> multiCall exponent 
 			]
 ];
 link ^ = **;
@@ -2118,6 +2118,18 @@ getValue = [
 ];
 
 // classes
+church = [
+	type() fields = fields
+		|> createOperator [
+			Operands values = [
+				operator unpack = values
+					|> unwrapCall unpack
+			]
+		]
+];
+reify = [
+	value = value as createBaseType("reified")
+];
 createClass = [
 	Object spec, String name = 
 		getFields = [
