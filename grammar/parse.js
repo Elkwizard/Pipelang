@@ -457,7 +457,7 @@ AST.root = class root extends AST { static labels = []; };
 	}
 }
 
-	const regex = [[/^(?:\s+|\/\/.*|\/\*([\w\W]*?)\*\/)/, "comment", null], [/^(?:r?"((\\.)*([\w\W]*?))*?")/, "string", null], [/^(?:'\\?.')/, "char", null], [/^(?:[{}()\[\];,:.]|\|>|(=(?!=)))/, "symbol", null], [/^(?:\-?\b(\d+(\.\d+)?|\.\d+)([eE][\+\-]?\d+)?\b)/, "number", null], [/^(?:\w+|\|+|[^\w\s(){}\[\]|'",:;.$]+|\$)/, "identifier", null]];
+	const regex = [[/^(?:\s+|\/\/.*|\/\*([\w\W]*?)\*\/)/, "comment", null], [/^(?:r?"(\\?[\w\W])*?")/, "string", null], [/^(?:'\\?.')/, "char", null], [/^(?:[{}()\[\];,:.]|\|>|(=(?!=)))/, "symbol", null], [/^(?:\-?\b(\d+(\.\d+)?|\.\d+)([eE][\+\-]?\d+)?\b)/, "number", null], [/^(?:\w+|\|+|[^\w\s(){}\[\]|'",:;.$]+|\$)/, "identifier", null]];
 	const types = { };
 	const hidden = new Set(["comment"]);
 	for (const pair of regex) {
