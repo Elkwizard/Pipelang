@@ -266,7 +266,7 @@ class Operator {
 		this.maxOperands = this.operands.length;
 		this.method = method;
 		this.tailCall = tailCall;
-		this.sourceCode = null;
+		this.sourceCode = "...";
 		this.localName = "anonymous";
 	}
 	set localName(name) {
@@ -376,9 +376,8 @@ class Operator {
 	}
 	toString() {
 		let { sourceCode } = this;
-		if (sourceCode)
+		if (sourceCode instanceof AST)
 			sourceCode = format(sourceCode.textContent.replace(/\s+/g, " "));
-		else sourceCode = "...";
 
 		let normalized = `[${this.operands.map(([type, name, value, guard]) => {
 			let result = type.ignore ? "" : type + " ";
