@@ -272,10 +272,21 @@ currentScope["display"] = new Operator([
 	spanX = maxX - minX;
 	spanY = maxY - minY;
 
-	const integer = number => 2 ** Math.round(Math.log2(number));
+	const integer = number => {
+		const pow10 = 10 ** Math.floor(Math.log10(number));
+		const ratio = Math.round(number / pow10);
+		const complete = pow10 * ratio;
+		return complete;
+	};
 
 	const xScale = integer(spanX / 10);
 	const yScale = integer(spanY / 10);
+
+	const prettify = number => {
+		return String(number)
+			.replace(/(\d)9{8,}\d$/g, (_, n) => +n + 1)
+			.replace(/0{8,}\d$/g, "");
+	};
 
 	minX = Math.floor(minX / xScale) * xScale;
 	maxX = Math.ceil(maxX / xScale) * xScale;
@@ -365,7 +376,7 @@ currentScope["display"] = new Operator([
 			this.line([minX, X_AXIS_Y], [maxX, X_AXIS_Y]);
 			if (marks) {
 				for (let i = minX; i < maxX; i += xScale) {
-					c.fillText(i, mapX(i) + LABEL_OFFSET, mapY(X_AXIS_Y) - LABEL_OFFSET);
+					c.fillText(prettify(i), mapX(i) + LABEL_OFFSET, mapY(X_AXIS_Y) - LABEL_OFFSET);
 				}
 			}
 			this.color();
@@ -375,7 +386,7 @@ currentScope["display"] = new Operator([
 			this.line([Y_AXIS_X, minY], [Y_AXIS_X, maxY]);
 			if (marks) {
 				for (let i = minY; i < maxY; i += yScale) {
-					c.fillText(i, mapX(Y_AXIS_X) + LABEL_OFFSET, mapY(i) - LABEL_OFFSET);
+					c.fillText(prettify(i), mapX(Y_AXIS_X) + LABEL_OFFSET, mapY(i) - LABEL_OFFSET);
 				}
 			}
 			this.color();
@@ -427,6 +438,18 @@ currentScope["display"] = new Operator([
 
 	logElement(canvas);
 });
+
+exec(`
+	// real
+	data = { { 150 170 190 210 230 } { 0.7 0.6 0.5 0.4 0.4 } { 0.68 0.54 0.49 0.42 0.39 } { 0.8 0.7 0.7 0.7 0.6 } { 0.8 0.7 0.7 0.6 0.6 } };
+	x = data(0);
+	y = tail(data);
+	xl = 1 / x;
+	titleX = "1/Distance [1/μm]";
+	titleY = "0th Maxima Width [cm]";
+	error = { 4, 0.05 };
+	prepend(y, xl) |> graphExperiment titleX titleY { error(0) / mean(x) * mean(xl), error(1) };
+`);
 
 if (false) exec(`
 	x = random 10;
