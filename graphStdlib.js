@@ -439,18 +439,6 @@ currentScope["display"] = new Operator([
 	logElement(canvas);
 });
 
-exec(`
-	// real
-	data = { { 150 170 190 210 230 } { 0.7 0.6 0.5 0.4 0.4 } { 0.68 0.54 0.49 0.42 0.39 } { 0.8 0.7 0.7 0.7 0.6 } { 0.8 0.7 0.7 0.6 0.6 } };
-	x = data(0);
-	y = tail(data);
-	xl = 1 / x;
-	titleX = "1/Distance [1/μm]";
-	titleY = "0th Maxima Width [cm]";
-	error = { 4, 0.05 };
-	prepend(y, xl) |> graphExperiment titleX titleY { error(0) / mean(x) * mean(xl), error(1) };
-`);
-
 if (false) exec(`
 	x = random 10;
 	y = rangeTo 3
