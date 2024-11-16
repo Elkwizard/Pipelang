@@ -284,8 +284,8 @@ currentScope["display"] = new Operator([
 
 	const prettify = number => {
 		return String(number)
-			.replace(/(\d)9{8,}\d$/g, (_, n) => +n + 1)
-			.replace(/0{8,}\d$/g, "");
+			.replace(/(\d)9{8,}\d{0,2}$/g, (_, n) => +n + 1)
+			.replace(/0{8,}\d{0,2}$/g, "");
 	};
 
 	minX = Math.floor(minX / xScale) * xScale;
