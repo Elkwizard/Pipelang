@@ -89,6 +89,76 @@ graphArea = graphContinuation([
 		|> graphPolygon
 ]);
 
+CHART_BAR_WIDTH = 0.7;
+
+graphBarChart = graphContinuation([
+	real(2)() points, String() names, String yTitle =
+		bins = points
+			|> axis 0
+			|> unique
+			|> sort;
+		namePadding = names
+			|> map len
+			|> sum
+			|> [100 - $]
+			|> / $(len(names) + 2)
+			|> round
+			|> [repeat(' ', $)];
+		bars = bins
+			|> [
+				real x = 
+
+					data = points
+						|> filter [$(0) == x]
+						|> axis 1;
+					height = mean(data);
+					stdErr = data
+						|> sampStdDev
+						|> stdDevXBar len(data);
+					diagonal = { CHART_BAR_WIDTH, height } * 0.5;
+					center = { x + 1, height * 0.5 };
+					color = rangeTo(3)
+						|> fill random
+						|> append 1;
+					{}
+						|> concat graphColor(color)
+						|> concat graphRect(center - diagonal, center + diagonal)
+						|> concat graphColor({ 0, 0, 0, 1 })
+						|> concat graphErrorBar(
+							{ center(0), height }, { 0, 1 },
+							stdErr, CHART_BAR_WIDTH * 0.5
+						)
+			]
+			|> reduce concat
+			|> graphXTitle join(names, namePadding)
+			|> graphYTitle yTitle
+]);
+
+graphHistogram = graphContinuation([
+	real() data, real bins =
+		min = minAll(data);
+		max = maxAll(data);
+		binSize = (max - min) / bins;
+		gap = binSize * 0.05;
+		bins
+			|> rangeTo
+			|> * binSize
+			|> + roundTo(min, binSize, floor)
+			|> [real bin = { bin, bin + binSize }]
+			|> [
+				real(2) bin = 
+					height = data
+						|> filter [bin |> contains $]
+						|> len;
+					
+					graphRect(
+						{ bin(0) + gap, 0 },
+						{ bin(1) - gap, height }
+					)
+			]
+			|> flat
+]);
+
 graphFunction = graphContinuation([
 	operator fn, real(2) domain = fn
 		|> getFunctionGraphPoints domain
@@ -284,6 +354,7 @@ currentScope["display"] = new Operator([
 
 	const prettify = number => {
 		return String(number)
+			.replace(/(\d+)\.9*$/, (_, n) => +n + 1)
 			.replace(/(\d)9{8,}\d{0,2}$/g, (_, n) => +n + 1)
 			.replace(/0{8,}\d{0,2}$/g, "");
 	};
@@ -449,6 +520,15 @@ if (false) exec(`
 		];
 	error = { 0.01, 0.01 };
 	graphExperiment "Force [N]" "Distance [m]" prepend(y, x) error;
+`);
+
+if (false) exec(`
+	// data = (random(100) + random(100) + random(100)) * 0.333;
+	data = random(100);
+	graphBase(true)
+		|> graphColor { 1, 0, 0, 0.5 }
+		|> graphHistogram data 10
+		|> display
 `);
 
 if (false) exec(`

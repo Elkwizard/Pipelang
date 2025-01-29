@@ -1,0 +1,39 @@
+d0 = 19/3;
+rho = 28;
+sigma = 10;
+beta = 8/3;
+dt = 0.01;
+initialState = { 4.864 8.376 13.18 0 0 };
+
+lorenz = [
+	real(5) { x y z y1 z1 } = {
+		sigma * (y - x),
+		x * (rho - z) - y,
+		x * y - x * y1 - beta * z,
+		x * z - 2 * x * z1 - d0 * y1,
+		2 * x * y1 - 4 * beta * z1
+	}
+];
+
+advance = [
+	real(5) state = state + lorenz(state) * dt
+];
+
+applications = [
+	any state, operator advance, real count = count
+		|> ? [=
+			state
+				|> advance
+				|> applications advance $(count - 1)
+				|> prepend state
+		] [= {}]
+];
+
+project = [
+	real(5) { x y z } = { x / (z + 0.1), y / (z + 0.1) }
+];
+
+phasePoints = initialState |> applications advance 500;
+screenPoints = phasePoints |> project;
+
+graphBase(false) |> graphPoints screenPoints |> display;

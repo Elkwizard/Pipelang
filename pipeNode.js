@@ -4,7 +4,9 @@ const importFile = file => {
 	const source = fs.readFileSync(file, "utf-8");
 	const keys = [...source.matchAll(/^(let|const|class|function)\s+(\w+)/gm)]
 		.map(match => match[2]);
-	const fnSource = `${source};\n({ ${keys.join(", ")} })`;
+	const fnSource = `${source};\n({ ${keys.map(key => {
+		return `${key}: typeof ${key} === "undefined" ? undefined : ${key}`
+	}).join(", ")} })`;
 	
 	return eval(fnSource);
 };

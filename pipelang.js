@@ -277,6 +277,11 @@ class Operator {
 	get localName() {
 		return this._localName;
 	}
+	get callStackLine() {
+		if (this.localName === "anonymous")
+			return `${this.localName}: ${this}`;
+		return this.localName;
+	}
 	get overloads() {
 		const result = [this.copyAlone()];
 		if (this.overload) result.push(...this.overload.overloads);
@@ -489,7 +494,8 @@ function resetScopes() {
 resetScopes();
 
 function cannotUse(value, message) {
-	throw new TypeError(`Cannot use type '${typeOf(value)}' ${message}`);
+	const errorMessage = `Cannot use type '${typeOf(value)}' ${message}: ${value}`;
+	throw new TypeError(errorMessage);
 }
 
 function tryOperate(operator, args) {
@@ -502,7 +508,7 @@ function tryOperate(operator, args) {
 function tryOperateStackless(operator, args) {
 	while (true) {
 		if (operator instanceof Operator) {
-			callStack.push(operator.localName);
+			callStack.push(operator.callStackLine);
 			operator = operator.arrayOperate(args);
 			if (!Array.isArray(operator)) return operator;
 			[operator, args] = operator;
@@ -938,6 +944,10 @@ currentScope["unwrapCall"] = new Operator([
 	[new Type("operator", [null]), "args"],
 	[new Type("operator"), "op"]
 ], (args, op) => op.operate(...args.elements.map(Operator.unwrap)));
+
+currentScope["unique"] = new Operator([
+	[new Type("real", [null]), "data"]
+], data => new List([...new Set(data.elements)]));
 
 currentScope["toString"] = new Operator([
 	[new Type("any"), "value"]

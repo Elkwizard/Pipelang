@@ -81,6 +81,17 @@ flip = [
 commute = [
 	operator op = op & flip(op)
 ];
+variadic = [
+	operator op, real limit: 10 = limit
+		|> rangeTo
+		|> + 1
+		|> [
+			real count = any
+				|> repeat count
+				|> createOperator op
+		]
+		|> asOverloads
+];
 
 // simple operators
 $ = identity = [
@@ -209,6 +220,11 @@ fill = [
 nthOf = [
 	real n, any() list = list(n)
 ];
+cut = [
+	any() list, real n = {
+		list(:n), list(n:)
+	}
+];
 map = [
 	any() list, operator fn = list
 		|> indices
@@ -298,6 +314,9 @@ odd = [
 	real n = n
 		|> even
 		|> !
+];
+roundTo = [
+	real x, real scale, operator kind: round = kind(x / scale) * scale
 ];
 count = [
 	any() list, value = list
@@ -476,7 +495,7 @@ sampVariance = [
 	real() list = list
 		|> - mean(list)
 		|> sumSquared
-		|> / $(len(list) - 1)
+		|> / max(1, len(list) - 1)
 ];
 freqStdDev = [
 	real() list, real() freq = list
@@ -1984,6 +2003,38 @@ int = [
 			|> sum
 		]
 ] & round;
+format = [
+	String format, operator() subs = format
+		|> split "%"
+		|> is segments
+		|> indices
+		|> [
+			real index = 
+				segment = segments(index);
+				index > 0 ? [= 
+					specifier = segment(0);
+					text = segment(1:);
+					sub = subs(index - 1)();
+					specifier
+						|> switch {
+							case('d', [= toString(sub)]),
+							case('s', [= sub]),
+							case('o', [= toString(sub)])
+							default([= "<error!>"])
+						}
+						|> concat text
+				]() : segment
+		]
+		|> join ""
+];
+printf = variadic([
+	Operands ops =
+		formatString = ops(0)();
+		subs = ops(1:);
+		formatString
+			|> format subs
+			|> printString
+]);
 
 // objects
 Field = operator(2);
