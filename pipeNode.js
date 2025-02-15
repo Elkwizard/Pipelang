@@ -1,4 +1,7 @@
 const fs = require("fs");
+const path = require("path");
+
+process.chdir(path.dirname(process.argv[1]));
 
 const importFile = file => {
 	const source = fs.readFileSync(file, "utf-8");
