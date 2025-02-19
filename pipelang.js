@@ -216,13 +216,19 @@ class List {
 		let prefix = this.exotic ? this.type.toString() : "";
 		if (this.printable) prefix = JSON.stringify(this.asString()) + prefix;
 
+		let toJoin = [];
+
 		if (this.elements.length) {
 			const fields = this.elements.map(field => this.parseField(field));
-			if (fields.every(Boolean))
-				return prefix + `{ ${fields.join(", ")} }`;
-			return prefix + `{ ${this.elements.join(", ")} }`;
+			toJoin = fields.every(Boolean) ? fields : this.elements;
 		}
-		return prefix + `{ }`;
+
+		if (toJoin.length > 50) {
+			toJoin = toJoin.slice(0, 50);
+			toJoin.push("...");
+		}
+		
+		return `${prefix}{ ${toJoin.join(", ")} }`;
 	}
 	parseField(field) {
 		if (field.length !== 2) return null;
