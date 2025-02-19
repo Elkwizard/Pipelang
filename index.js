@@ -39,7 +39,7 @@ currentScope["print"] = new Operator([
 
 currentScope["printString"] = new Operator([
 	[new Type("real", [null]), "charCodes"]
-], charCodes => log(String.fromCharCode(...charCodes.toArray())));
+], charCodes => log(charCodes.asString()));
 
 currentScope["printChar"] = new Operator([
 	[new Type("real"), "charCode"]
@@ -82,7 +82,7 @@ function exec(command) {
 		log("» " + highlight(result, OUT_COLORS));
 		if (result !== undefined) currentScope["ans"] = result;
 	} catch (err) {
-		const message = `${err.stack}\n${
+		const message = `${err}\n${
 			callStack
 				.map(name => `\t at ${name}`)
 				.reverse()

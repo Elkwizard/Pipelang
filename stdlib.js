@@ -2382,6 +2382,104 @@ currentScope["linReg"] = new Operator([
 	}
 });
 
+currentScope["readTextFile"] = new Operator([
+	[new Type("real", [null]), "name"]
+], varName => {
+	varName = varName.asString();
+	const fi = document.createElement("input");
+	fi.type = "file";
+	fi.addEventListener("change", () => {
+		const file = fi.files[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.readAsArrayBuffer(file);
+			reader.addEventListener("load", () => {
+				const { result } = reader;
+				const textDecoder = new TextDecoder();
+				const string = textDecoder.decode(result);
+				if (textDecoder.fatal) {
+					currentScope[varName] = VOID;
+				} else {
+					currentScope[varName] = List.fromString(string);
+				}
+			});
+			reader.addEventListener("error", () => {
+				currentScope[varName] = VOID;
+			});
+		}
+	});
+	fi.click();
+});
+
+currentScope["parseCSV"] = new Operator([
+	[new Type("real", [null]), "csv"],
+	[new Type("type", [null]), "columnTypes", AST.make.Reference("no")]
+], (text, columnTypes) => {
+	text = text.asString();
+	const [header, ...lines] = text.split("\n");
+	let failed = false;
+	const parseValue = (str, index) => {
+		const columnType = columnTypes?.[index];
+		if (columnType) { // known type
+			if (columnType.dimensions?.length > 0) return List.fromString(str);
+			if (columnType.baseType === "void") return VOID;
+			return +str;
+		}
+
+		if (str === "") return VOID;
+		if (!isNaN(+str)) return +str;
+		return List.fromString(str);
+	};
+	const parseLine = line => {
+		const values = [];
+		while (line.length) {
+			if (line.startsWith("\"")) {
+				const match = line.match(/"(\\?.)*?"/);
+				if (!match) {
+					failed = true;
+					break;
+				}
+				const text = match[0];
+				line = line.slice(text.length);
+				values.push(JSON.parse(text));
+			} else if (!line.startsWith(",")) {
+				let index = line.indexOf(",");
+				if (index === -1) index = line.length;
+				const text = line.slice(0, index);
+				line = line.slice(index);
+				values.push(text);
+			}
+			
+			if (line.startsWith(",")) {
+				line = line.slice(1);
+			} else if (line.length) {
+				failed = true;
+			}
+		}
+
+		return values;
+	};
+
+	if (failed) return VOID;
+
+	try {
+		const headerValues = parseLine(header).map(name => List.fromString(name));
+		const result = lines.map(line => {
+			const values = parseLine(line);
+			const fields = values.map((v, i) => {
+					const key = headerValues[i];
+					const value = parseValue(v, i);
+					return currentScope.field.operate(key, value);
+				});
+			return new List(fields);
+		});
+		
+		return new List(result);
+	} catch (err) {
+		return VOID;	
+	}
+});
+
 // exec(`
 	
 // addMultiplier = [

@@ -145,6 +145,11 @@ class List {
 		this.elements = elements;
 		this.length = elements.length;
 	}
+	get size() {
+		if (!(this.elements[0] instanceof List))
+			return this.elements.length;
+		return this.elements.reduce((a, b) => a + b.size, 0);
+	}
 	decay() {
 		return new List(this.elements);
 	}
@@ -450,7 +455,7 @@ function nameType(type) {
 	const dims = [...type.dimensions];
 	for (let i = 0; i < dims.length; i++) {
 		const dim = dims[i];
-		result = `{${dim ? new Array(dim).fill(result).join(", ") : result + "…"}}`;
+		result = `{${dim && dim <= 3 ? new Array(dim).fill(result).join(", ") : result + "…"}}`;
 	}
 	return result;
 }
