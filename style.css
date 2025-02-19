@@ -28,6 +28,10 @@
 		--secondary: var(--dark);
 		--scroll: #ddd;
 	}
+
+	* {
+		color: black;
+	}
 }
 
 .log, #commandHighlight {	

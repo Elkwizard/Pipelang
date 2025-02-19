@@ -708,7 +708,7 @@ function evalExpression(expr) {
 		return operator;
 	}
 
-	throw new Error("Unsupported operation!?!");
+	throw new Error(`Unsupported operation ${expr?.constructor?.name}!?!`);
 }
 
 function evalStat(command) {
@@ -746,14 +746,16 @@ function evalStat(command) {
 		);
 	});
 	ast.transform(AST.Expression, expr => {
-		if (expr.step instanceof AST.Property)
+		if (expr.step instanceof AST.Property) {
+			const { dynamic, key } = expr.step;
 			return make.Expression(
 				make.Reference("read"),
 				make.Arguments([
 					expr.base,
-					make.StringValue(JSON.stringify(expr.step.key))
+					dynamic ?? make.StringValue(JSON.stringify(key))
 				])
 			);
+		}
 		
 		return expr;
 	});
