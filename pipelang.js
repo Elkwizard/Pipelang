@@ -223,8 +223,9 @@ class List {
 			toJoin = fields.every(Boolean) ? fields : this.elements;
 		}
 
-		if (toJoin.length > 50) {
-			toJoin = toJoin.slice(0, 50);
+		const lengthLimit = Math.floor(currentScope.MAX_SHOWN_LIST_LENGTH);
+		if (!isNaN(lengthLimit) && toJoin.length > lengthLimit) {
+			toJoin = toJoin.slice(0, lengthLimit);
 			toJoin.push("...");
 		}
 		
@@ -930,6 +931,7 @@ currentScope["error"] = new Operator([
 });
 
 currentScope["SHOW_PRINTABLE_STRINGS"] = 0;
+currentScope["MAX_SHOWN_LIST_LENGTH"] = 100;
 
 currentScope["?"] = new Operator([
 	[new Type("real"), "condition"],
