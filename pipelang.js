@@ -192,10 +192,25 @@ class List {
 		} else return [];
 	}
 	asString() {
-		return String.fromCharCode(...this.elements);
+		let result = "";
+		for (let i = 0; i < this.elements.length; i++)
+			result += String.fromCharCode(this.elements[i]);
+		return result;
+	}
+	get printable() {
+		if (!this.elements.length) return false;
+		if (typeof this.elements[0] !== "number") return false;
+		return this.elements.every(char => 20 <= char && char <= 126);
 	}
 	toString() {
-		const prefix = this.exotic ? this.type.toString() : "";
+		if (
+			currentScope.SHOW_PRINTABLE_STRINGS === 1 &&
+			this.printable
+		) return JSON.stringify(this.asString());	
+
+		let prefix = this.exotic ? this.type.toString() : "";
+		if (this.printable) prefix = JSON.stringify(this.asString()) + prefix;
+
 		if (this.elements.length) {
 			const fields = this.elements.map(field => this.parseField(field));
 			if (fields.every(Boolean))
@@ -903,6 +918,8 @@ currentScope["error"] = new Operator([
 	throw new Error(string.asString());
 });
 
+currentScope["SHOW_PRINTABLE_STRINGS"] = 0;
+
 currentScope["?"] = new Operator([
 	[new Type("real"), "condition"],
 	[new Type("operator"), "ifTrue"],
@@ -945,9 +962,18 @@ currentScope["unwrapCall"] = new Operator([
 	[new Type("operator"), "op"]
 ], (args, op) => op.operate(...args.elements.map(Operator.unwrap)));
 
-currentScope["unique"] = new Operator([
-	[new Type("real", [null]), "data"]
-], data => new List([...new Set(data.elements)]));
+{
+	const uniqueNumbers = new Operator([
+		[new Type("real", [null]), "data"]
+	], data => new List([...new Set(data.elements)]));
+	const uniqueStrings = new Operator([
+		[new Type("real", [null, null]), "strings"]
+	], strings => {
+		strings = strings.elements.map(list => list.asString());
+		return new List([...new Set(strings)].map(List.fromString));
+	});
+	currentScope["unique"] = uniqueStrings.withOverload(uniqueNumbers);
+}
 
 currentScope["toString"] = new Operator([
 	[new Type("any"), "value"]

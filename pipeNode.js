@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
+const oldWD = process.cwd();
+
 process.chdir(path.dirname(process.argv[1]));
 
 const importFile = file => {
@@ -21,10 +23,13 @@ const { AST, parse } = importFile("./grammar/parse.js");
 importFile("./format.js");
 const {
 	currentScope, callStack, evalStat,
-	Operator, List, Type
+	Operator, List, Type, VOID
 } = importFile("./pipelang.js");
 const { highlight } = importFile("./highlightPL.js");
 const { exec, addColor } = importFile("./index.js");
 importFile("./stdlib.js");
+importFile("./nodeStdlib.js");
+
+process.chdir(oldWD);
 
 module.exports = { exec, currentScope, Operator, List, Type };
