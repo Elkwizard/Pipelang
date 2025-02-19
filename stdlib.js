@@ -2400,8 +2400,7 @@ currentScope["readTextFile"] = new Operator([
 				if (textDecoder.fatal) {
 					currentScope[varName] = VOID;
 				} else {
-					currentScope[varName] = List.fromString(string)
-						.replace(/\r\n|\r|\n/g, "\n");
+					currentScope[varName] = List.fromString(string.replace(/\r\n|\r|\n/g, "\n"));
 				}
 			});
 			reader.addEventListener("error", () => {

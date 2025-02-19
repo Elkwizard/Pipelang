@@ -69,6 +69,11 @@ body {
 	border-bottom: 1px gray solid;
 }
 
+.wrap-word .log {
+	white-space: unset;
+	word-break: break-word;
+}
+
 #commandHighlight::after {
 	content: "";
 	display: inline-block;
@@ -108,6 +113,12 @@ body {
 .log::before {
 	content: attr(data-prefix);
 	color: gray;
+}
+
+#wrapLogs {
+	position: absolute;
+	bottom: 0;
+	right: 0;
 }
 
 /* #selection {
