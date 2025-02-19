@@ -82,7 +82,6 @@ function exec(command) {
 		log("» " + highlight(result, OUT_COLORS));
 		if (result !== undefined) currentScope["ans"] = result;
 	} catch (err) {
-		throw err;
 		const message = `${err}\n${
 			callStack
 				.map(name => `\t at ${name}`)
