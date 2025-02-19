@@ -2382,35 +2382,6 @@ currentScope["linReg"] = new Operator([
 	}
 });
 
-currentScope["readTextFile"] = new Operator([
-	[new Type("real", [null]), "name"]
-], varName => {
-	varName = varName.asString();
-	const fi = document.createElement("input");
-	fi.type = "file";
-	fi.addEventListener("change", () => {
-		const file = fi.files[0];
-		if (file) {
-			const reader = new FileReader();
-			reader.readAsArrayBuffer(file);
-			reader.addEventListener("load", () => {
-				const { result } = reader;
-				const textDecoder = new TextDecoder();
-				const string = textDecoder.decode(result);
-				if (textDecoder.fatal) {
-					currentScope[varName] = VOID;
-				} else {
-					currentScope[varName] = List.fromString(string.replace(/\r\n|\r|\n/g, "\n"));
-				}
-			});
-			reader.addEventListener("error", () => {
-				currentScope[varName] = VOID;
-			});
-		}
-	});
-	fi.click();
-});
-
 currentScope["parseCSV"] = new Operator([
 	[new Type("real", [null]), "csv"],
 	[new Type("type", [null]), "columnTypes", AST.make.Reference("no")]

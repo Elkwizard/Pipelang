@@ -16,9 +16,6 @@ const importFile = file => {
 	return eval(fnSource);
 };
 
-const log = msg => console.log(msg);
-const clear = () => console.clear();
-
 const { AST, parse } = importFile("./grammar/parse.js");
 importFile("./format.js");
 const {
@@ -28,7 +25,7 @@ const {
 const { highlight } = importFile("./highlightPL.js");
 const { exec, addColor } = importFile("./index.js");
 importFile("./stdlib.js");
-importFile("./nodeStdlib.js");
+importFile("./nodeIO.js");
 
 process.chdir(oldWD);
 

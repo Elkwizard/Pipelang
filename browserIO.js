@@ -1,3 +1,32 @@
+currentScope["readTextFile"] = new Operator([
+	[new Type("real", [null]), "name"]
+], varName => {
+	varName = varName.asString();
+	const fi = document.createElement("input");
+	fi.type = "file";
+	fi.addEventListener("change", () => {
+		const file = fi.files[0];
+		if (file) {
+			const reader = new FileReader();
+			reader.readAsArrayBuffer(file);
+			reader.addEventListener("load", () => {
+				const { result } = reader;
+				const textDecoder = new TextDecoder();
+				const string = textDecoder.decode(result);
+				if (textDecoder.fatal) {
+					currentScope[varName] = VOID;
+				} else {
+					currentScope[varName] = List.fromString(string.replace(/\r\n|\r|\n/g, "\n"));
+				}
+			});
+			reader.addEventListener("error", () => {
+				currentScope[varName] = VOID;
+			});
+		}
+	});
+	fi.click();
+});
+
 function applyFormat(text) {
 	text = text.replace(/.*?/gs, line => {
 		log.escaper.innerText = line;
@@ -39,9 +68,27 @@ function applyFormat(text) {
 }
 
 function log(text) {
+	const MAX_LOG_LENGTH = 10000;
+	const truncated = text.length > MAX_LOG_LENGTH;
+	let displayText = text;
+	if (truncated)
+		displayText = text.slice(0, MAX_LOG_LENGTH - 3) + "...";
 	const element = document.createElement("div");
-	element.innerHTML = applyFormat(text);
+	element.innerHTML = applyFormat(displayText);
 	element.className = "log";
+	
+	if (truncated) {
+		const expand = document.createElement("button");
+		const remaining = text.length - MAX_LOG_LENGTH;
+		const order = Math.floor(Math.log10(remaining) / 3);
+		const suffix = ["B", "KB", "MB", "GB"][order];
+		const coefficient = remaining / (10 ** (order * 3));
+		expand.textContent = `Show More (${coefficient.toFixed(2)} ${suffix})`;
+		expand.addEventListener("click", () => {
+			element.innerHTML = applyFormat(text);
+		});
+		element.appendChild(expand);
+	}
 	document.getElementById("logs").appendChild(element);
 }
 log.escaper = document.createElement("span");
