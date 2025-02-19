@@ -804,15 +804,6 @@ function evalStat(command) {
 		}
 		return op;
 	});
-	ast.transform(AST.Operator, op => {
-		const { statements } = op.body;
-		op.body.statements = statements.map((stmt, i) => {
-			if (!(stmt.step instanceof AST.Call) || i < statements.length - 1) return stmt;
-			op.tailCall = stmt.step;
-			return stmt.source;
-		});
-		return op;
-	});
 	ast.forEach(AST.DestructureField, field => {
 		if (!field.name) field.name = field.key;
 	});
@@ -822,6 +813,15 @@ function evalStat(command) {
 		else str.string = JSON.parse(value.replace(
 			/[\x00-\x1f]/g, char => JSON.stringify(char).slice(1, -1)
 		));
+	});
+	ast.transform(AST.Operator, op => {
+		const { statements } = op.body;
+		op.body.statements = statements.map((stmt, i) => {
+			if (!(stmt.step instanceof AST.Call) || i < statements.length - 1) return stmt;
+			op.tailCall = stmt.step;
+			return stmt.source;
+		});
+		return op;
 	});
 
 	return evalBody(ast);
