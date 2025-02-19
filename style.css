@@ -112,36 +112,3 @@ body {
 	height: 10px;
 	background: red;
 } */
-
-#suggestions {
-	position: fixed;
-	display: flex;
-	flex-direction: column;
-	overflow-y: auto;
-	overflow-x: hidden;
-	align-items: end;
-	width: 30ch;
-	background: var(--primary);
-	z-index: 2;
-	border: 1px var(--secondary) solid;
-	top: -0.5px;
-	right: -0.5px;
-	font-size: 2vh;
-
-	> div {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		border-bottom: 1px var(--secondary) solid;
-		padding: 0.5em;
-
-		> div {
-
-			&:last-child {
-				text-align: right;
-				padding-top: 0.3em;
-				font-size: 0.8em;
-			}
-		}
-	}
-}
