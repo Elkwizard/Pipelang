@@ -16,6 +16,9 @@ const importFile = file => {
 	return eval(fnSource);
 };
 
+const log = msg => console.log(msg);
+const clear = () => console.clear();
+
 const { AST, parse } = importFile("./grammar/parse.js");
 importFile("./format.js");
 const {

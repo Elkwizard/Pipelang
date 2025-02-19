@@ -205,7 +205,12 @@ class List {
 	get printable() {
 		if (!this.elements.length) return false;
 		if (typeof this.elements[0] !== "number") return false;
-		return this.elements.every(char => 20 <= char && char <= 126);
+		return this.elements.every(char => {
+			return	(32 <= char && char <= 126) ||
+					char === 9 ||
+					char === 10 ||
+					char === 13;
+		});
 	}
 	toString() {
 		if (

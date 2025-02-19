@@ -1,6 +1,3 @@
-const log = msg => console.log(msg);
-const clear = () => console.clear();
-
 currentScope["readTextFile"] = new Operator([
 	[new Type("real", [null]), "fileName"]
 ], fileName => {
