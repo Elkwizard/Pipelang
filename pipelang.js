@@ -781,7 +781,7 @@ function evalStat(command) {
 		return make.Expression(
 			make.Reference(method ? "method" : "field"),
 			make.Arguments([
-				make.StringValue(JSON.stringify(key)),
+				make.StringValue(key.startsWith('"') ? key : JSON.stringify(key)),
 				value ?? make.Reference(key)
 			])
 		);
