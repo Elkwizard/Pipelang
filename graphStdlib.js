@@ -54,8 +54,8 @@ graphBase = graphContinuation([
 
 graphTitles = graphContinuation([
 	String title, String xTitle: "", String yTitle: "" = graphTitle(title)
-		|> graphXTitle xTitle
-		|> graphYTitle yTitle
+		|> graphXAxis { title: xTitle }
+		|> graphYAxis { title: yTitle }
 ]);
 
 graphLines = graphContinuation([
@@ -105,7 +105,6 @@ graphBarChart = graphContinuation([
 		bars = bins
 			|> [
 				real x = 
-
 					data = points
 						|> filter [$(0) == x]
 						|> axis 1;
@@ -128,8 +127,8 @@ graphBarChart = graphContinuation([
 						)
 			]
 			|> reduce concat
-			|> graphXTitle join(names, namePadding)
-			|> graphYTitle yTitle
+			|> graphXAxis { title: join(names, namePadding) }
+			|> graphYAxis { title: yTitle }
 ]);
 
 graphHistogram = graphContinuation([
