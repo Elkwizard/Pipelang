@@ -41,7 +41,7 @@ graphPixels = "pixels" |> graphPrimitive { real(4)()(), real(2) };
 graphTitle = "title" |> graphPrimitive { String };
 
 // settings
-graphColor = "color" |> graphPrimitive { real(4) };
+graphColor = "color" |> graphPrimitive { real() };
 graphDash = "dash" |> graphPrimitive { real() };
 graphLineWidth = "linewidth" |> graphPrimitive { real };
 graphPolygon = "polygon" |> graphPrimitive { real(2)() };
@@ -305,8 +305,12 @@ currentScope["display"] = new Operator([
 
 	const defaultAxisConfig = color => ({
 		marks: false,
+		present: false,
 		title: null,
 		ticks: null,
+		min: null,
+		max: null,
+		rangeSpecified: false,
 		color
 	});
 
@@ -316,7 +320,10 @@ currentScope["display"] = new Operator([
 	};
 
 	const points = [];
-	for (const { action, settings, originalSettings } of actions) {
+	let newActions = [];
+	for (const step of actions) {
+		const { action, settings, originalSettings } = step;
+		let remove = false;
 		switch (action) {
 			case "rect":
 			case "line":
@@ -333,7 +340,9 @@ currentScope["display"] = new Operator([
 			}; break;
 			case "xaxis":
 			case "yaxis": { // add to config
+				remove = true;
 				const config = axisConfig[action[0]];
+				config.present = true;
 				for (const key in config) {
 					const value = originalSettings[0].read(key);
 					if (value === VOID) continue;
@@ -350,23 +359,29 @@ currentScope["display"] = new Operator([
 					} else if (key === "ticks") {
 						if (typeof value !== "number") continue;
 						config.ticks = value;
+					} else if (key === "min" || key === "max") {
+						if (typeof value !== "number") continue;
+						config.rangeSpecified = true;
+						config[key] = value;
 					}
 				}
 			}; break;
 		}
+		if (!remove) newActions.push(step);
 	}
+	actions = newActions;
 
 	const x = points.map(p => p[0]);
 	const y = points.map(p => p[1]);
-	let minX = Math.min(...x);
-	let maxX = Math.max(...x);
-	let minY = Math.min(...y);
-	let maxY = Math.max(...y);
+	let minX = axisConfig.x.min ?? Math.min(...x);
+	let maxX = axisConfig.x.max ?? Math.max(...x);
+	let minY = axisConfig.y.min ?? Math.min(...y);
+	let maxY = axisConfig.y.max ?? Math.max(...y);
 	let spanX = maxX - minX;
 	let spanY = maxY - minY;
 
-	const paddingX = spanX * 0.1;
-	const paddingY = spanY * 0.1;
+	const paddingX = axisConfig.x.rangeSpecified ? 0 : spanX * 0.1;
+	const paddingY = axisConfig.y.rangeSpecified ? 0 : spanY * 0.1;
 	minX -= paddingX;
 	maxX += paddingX;
 	minY -= paddingY;
@@ -459,14 +474,16 @@ currentScope["display"] = new Operator([
 			c.fillText(parseString(message), WIDTH / 2, -AXIS_TITLE_OFFSET);
 			c.textAlign = "start";
 		},
-		xtitle(message) {
+		xtitle() {
+			const message = axisConfig.x.title;
 			if (!message) return;
 			c.font = AXIS_TITLE_FONT;
 			c.textAlign = "center";
 			c.fillText(parseString(message), WIDTH / 2, HEIGHT + PADDING * 0.7);
 			c.textAlign = "start";
 		},
-		ytitle(message) {
+		ytitle() {
+			const message = axisConfig.y.title;
 			if (!message) return;
 			c.save();
 			c.translate(-AXIS_TITLE_OFFSET, HEIGHT / 2);
@@ -541,8 +558,15 @@ currentScope["display"] = new Operator([
 	for (const { action, settings } of actions)
 		plot[action]?.(...settings);
 
-	plot.xtitle(axisConfig.x.title);
-	plot.ytitle(axisConfig.y.title);
+	if (axisConfig.x.present) {
+		plot.xaxis();
+		plot.xtitle();
+	}
+
+	if (axisConfig.y.present) {
+		plot.yaxis();
+		plot.ytitle();
+	}
 
 	logElement(canvas);
 });
@@ -573,7 +597,8 @@ if (false) exec(`
 	// data = (random(100) + random(100) + random(100)) * 0.333;
 	data = random(100);
 	graphBase(true)
-		|> graphColor { 1, 0, 0, 0.5 }
+		|> graphColor { 1, 0, 0 }
+		|> graphYAxis { min: 0 }
 		|> graphHistogram data 10
 		|> display
 `);
