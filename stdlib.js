@@ -2086,6 +2086,18 @@ values = [
 				|> wrap
 		]
 ];
+groupBy = [
+	Object() objects, String name = objects
+		|> read name
+		|> unique
+		|> map [
+			key = 
+				stringKey = key in String ? key : toString(key);
+				objects
+					|> filter [$.(name) == key]
+					|> [field(stringKey, $)]
+		]
+];
 
 // hash table
 Entry = [

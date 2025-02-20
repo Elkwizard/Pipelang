@@ -494,6 +494,7 @@ currentScope["display"] = new Operator([
 			c.restore();
 		},
 		xaxis() {
+			c.font = BASE_FONT;
 			this.color(axisConfig.x.color);
 			this.line([minX, X_AXIS_Y], [maxX, X_AXIS_Y]);
 			if (axisConfig.x.marks) {
@@ -504,6 +505,7 @@ currentScope["display"] = new Operator([
 			this.color();
 		},
 		yaxis() {
+			c.font = BASE_FONT;
 			this.color(axisConfig.y.color);
 			this.line([Y_AXIS_X, minY], [Y_AXIS_X, maxY]);
 			if (axisConfig.y.marks) {
