@@ -2088,6 +2088,7 @@ values = [
 ];
 groupBy = [
 	Object() objects, String name = objects
+		|> filter [$.(name) != no]
 		|> read name
 		|> unique
 		|> map [
