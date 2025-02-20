@@ -547,7 +547,7 @@ currentScope["display"] = new Operator([
 	logElement(canvas);
 });
 
-exec(`
+if (false) exec(`
 	x = rangeTo(100) |> fill random;
 	y = x |> fill random |> * 0.2 |> + x;
 	points = zip({ x, y });
