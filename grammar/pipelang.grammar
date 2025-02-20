@@ -11,7 +11,7 @@ NumberValue = value:number
 StringValue = value:string
 CharValue = value:char
 Value = NumberValue | StringValue | CharValue
-Field = key:(identifier | string) ":" value:Precedence?
+Field = key:(identifier | Nested) ":" value:Precedence?
 List = "{" (elements:Precedence[","?] | elements:Field[","?]) "}"
 Parameter = type:Expression? name:Name (":" value:Pipe)? ("where" guard:Pipe)?
 Operator = "[" (parameters:Parameter[","] "=" body:Body | body:Precedence) "]"
