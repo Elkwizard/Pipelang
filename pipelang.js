@@ -611,7 +611,7 @@ function alias(binding, value, overload) {
 let currentUserNode;
 
 function evalExpression(expr) {
-	if (expr[AST.START_KEY]) currentUserNode = expr;
+	if (expr[AST.START_KEY] !== undefined) currentUserNode = expr;
 
 	if (expr instanceof AST.Link) {
 		currentScope[expr.name] = new Link(expr.source);
