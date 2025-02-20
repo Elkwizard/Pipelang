@@ -245,6 +245,9 @@ class List {
 			return null;
 		}
 	}
+	read(field) {
+		return currentScope.read.operate(this, List.fromString(field));
+	}
 	static fromString(string) {
 		return new List(string.split("").map(ch => ch.charCodeAt()));
 	}

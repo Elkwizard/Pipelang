@@ -30,8 +30,8 @@ color = [
 ] & [
 	real r, real g, real b, real a: 1 = { r, g, b, a }
 ];
-graphXAxis = "xaxis" |> graphPrimitive { real };
-graphYAxis = "yaxis" |> graphPrimitive { real };
+graphXAxis = "xaxis" |> graphPrimitive { Object };
+graphYAxis = "yaxis" |> graphPrimitive { Object };
 graphGrid = "grid" |> graphPrimitive { };
 graphText = "text" |> graphPrimitive { String, real(2) };
 graphRect = "rect" |> graphPrimitive { real(2), real(2) };
@@ -39,8 +39,6 @@ graphPoint = "point" |> graphPrimitive { real(2) };
 graphLine = "line" |> graphPrimitive { real(2), real(2) };
 graphPixels = "pixels" |> graphPrimitive { real(4)()(), real(2) };
 graphTitle = "title" |> graphPrimitive { String };
-graphXTitle = "xtitle" |> graphPrimitive { String };
-graphYTitle = "ytitle" |> graphPrimitive { String };
 
 // settings
 graphColor = "color" |> graphPrimitive { real(4) };
@@ -50,8 +48,8 @@ graphPolygon = "polygon" |> graphPrimitive { real(2)() };
 
 graphBase = graphContinuation([
 	real marks: true = graphGrid()
-		|> graphXAxis marks
-		|> graphYAxis marks
+		|> graphXAxis { marks: }
+		|> graphYAxis { marks: }
 ]);
 
 graphTitles = graphContinuation([
@@ -291,11 +289,11 @@ currentScope["display"] = new Operator([
 
 	actions = actions.toArray().map(action => {
 		const [name, settings] = action;
+		const unwrapped = Operator.unwrap(settings).toArray().map(Operator.unwrap);
 		return {
 			action: Operator.unwrap(name).asString(),
-			settings: Operator.unwrap(settings)
-					.toArray()
-					.map(Operator.unwrap)
+			originalSettings: unwrapped,
+			settings: unwrapped
 					.map(element => element instanceof List ? element.toArray() : element)
 		};
 	});
@@ -305,8 +303,20 @@ currentScope["display"] = new Operator([
 	const TITLE_FONT = `${PADDING * 0.6}px Arial`;
 	const AXIS_TITLE_OFFSET = PADDING * 0.35;
 
+	const defaultAxisConfig = color => ({
+		marks: false,
+		title: null,
+		ticks: null,
+		color
+	});
+
+	const axisConfig = {
+		x: defaultAxisConfig([0, 1, 0]),
+		y: defaultAxisConfig([1, 0, 0])
+	};
+
 	const points = [];
-	for (const { action, settings } of actions) {
+	for (const { action, settings, originalSettings } of actions) {
 		switch (action) {
 			case "rect":
 			case "line":
@@ -320,6 +330,28 @@ currentScope["display"] = new Operator([
 				const [colors, pos] = settings;
 				points.push(pos);
 				points.push([pos[0] + colors[0].length, pos[1] + colors.length]);
+			}; break;
+			case "xaxis":
+			case "yaxis": { // add to config
+				const config = axisConfig[action[0]];
+				for (const key in config) {
+					const value = originalSettings[0].read(key);
+					if (value === VOID) continue;
+					if (key === "marks") {
+						config.marks = !!value;
+					} else if (key === "title" || key === "color") {
+						if (!(value instanceof List)) continue;
+						if (typeof value.elements[0] !== "number") continue;
+						if (key === "title") {
+							config.title = value.asString();
+						} else {
+							config.color = value.toArray();
+						}
+					} else if (key === "ticks") {
+						if (typeof value !== "number") continue;
+						config.ticks = value;
+					}
+				}
 			}; break;
 		}
 	}
@@ -349,8 +381,8 @@ currentScope["display"] = new Operator([
 		return complete;
 	};
 
-	const xScale = integer(spanX / 10);
-	const yScale = integer(spanY / 10);
+	const xScale = axisConfig.x.ticks ?? integer(spanX / 10);
+	const yScale = axisConfig.y.ticks ?? integer(spanY / 10);
 
 	const prettify = number => {
 		return String(number)
@@ -428,12 +460,14 @@ currentScope["display"] = new Operator([
 			c.textAlign = "start";
 		},
 		xtitle(message) {
+			if (!message) return;
 			c.font = AXIS_TITLE_FONT;
 			c.textAlign = "center";
 			c.fillText(parseString(message), WIDTH / 2, HEIGHT + PADDING * 0.7);
 			c.textAlign = "start";
 		},
 		ytitle(message) {
+			if (!message) return;
 			c.save();
 			c.translate(-AXIS_TITLE_OFFSET, HEIGHT / 2);
 			c.rotate(-Math.PI / 2);
@@ -442,20 +476,20 @@ currentScope["display"] = new Operator([
 			c.fillText(parseString(message), 0, 0);
 			c.restore();
 		},
-		xaxis(marks) {
-			this.color([0, 1, 0]);
+		xaxis() {
+			this.color(axisConfig.x.color);
 			this.line([minX, X_AXIS_Y], [maxX, X_AXIS_Y]);
-			if (marks) {
+			if (axisConfig.x.marks) {
 				for (let i = minX; i < maxX; i += xScale) {
 					c.fillText(prettify(i), mapX(i) + LABEL_OFFSET, mapY(X_AXIS_Y) - LABEL_OFFSET);
 				}
 			}
 			this.color();
 		},
-		yaxis(marks) {
-			this.color([1, 0, 0]);
+		yaxis() {
+			this.color(axisConfig.y.color);
 			this.line([Y_AXIS_X, minY], [Y_AXIS_X, maxY]);
-			if (marks) {
+			if (axisConfig.y.marks) {
 				for (let i = minY; i < maxY; i += yScale) {
 					c.fillText(prettify(i), mapX(Y_AXIS_X) + LABEL_OFFSET, mapY(i) - LABEL_OFFSET);
 				}
@@ -505,10 +539,23 @@ currentScope["display"] = new Operator([
 	plot.color([0, 0, 0]);
 
 	for (const { action, settings } of actions)
-		plot[action](...settings);
+		plot[action]?.(...settings);
+
+	plot.xtitle(axisConfig.x.title);
+	plot.ytitle(axisConfig.y.title);
 
 	logElement(canvas);
 });
+
+exec(`
+	x = rangeTo(100) |> fill random;
+	y = x |> fill random |> * 0.2 |> + x;
+	points = zip({ x, y });
+	graphBase()
+		|> graphXAxis {title: "Words", ticks: 0.5, color: {1,0,0}}
+		|> graphPoints points
+		|> display;
+`);
 
 if (false) exec(`
 	x = random 10;

@@ -117,8 +117,9 @@ body {
 
 #wrapLogs {
 	position: fixed;
-	bottom: 0;
-	right: 0;
+	bottom: 0.3em;
+	right: 0.3em;
+	z-index: 10;
 }
 
 /* #selection {

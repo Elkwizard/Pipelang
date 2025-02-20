@@ -1,3 +1,27 @@
+// local storage
+const LS_KEY = "pipelangConfiguration";
+const localConfig = JSON.parse(localStorage[LS_KEY] ?? "{}");
+addEventListener("beforeunload", () => {
+	localStorage[LS_KEY] = JSON.stringify(localConfig);
+});
+
+{ // wrap logs
+	function updateWrapLogs() {
+		if (localConfig.wrapLogs) document.body.classList.add("wrap-word");
+		else document.body.classList.remove("wrap-word");
+	}
+	
+	updateWrapLogs();
+	
+	const checkbox = document.getElementById("wrapLogs");
+	checkbox.checked = localConfig.wrapLogs;
+
+	checkbox.addEventListener("click", () => {
+		localConfig.wrapLogs = checkbox.checked;
+		updateWrapLogs();
+	});
+}
+
 currentScope["readTextFile"] = new Operator([
 	[new Type("real", [null]), "name"]
 ], varName => {
