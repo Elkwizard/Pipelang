@@ -608,7 +608,11 @@ function alias(binding, value, overload) {
 	}
 }
 
+let currentUserNode;
+
 function evalExpression(expr) {
+	if (expr[AST.START_KEY]) currentUserNode = expr;
+
 	if (expr instanceof AST.Link) {
 		currentScope[expr.name] = new Link(expr.source);
 		return VOID;
@@ -846,7 +850,16 @@ function evalStat(command) {
 		return op;
 	});
 
-	return evalBody(ast);
+	currentUserNode = null;
+	let result;
+	try {
+		result = evalBody(ast);
+	} catch (err) {
+		if (currentUserNode)
+			currentUserNode.error(`${err.constructor.name}: ${err.message}`);
+		else throw err;
+	}
+	return result;
 }
 
 // types
