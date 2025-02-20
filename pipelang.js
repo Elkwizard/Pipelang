@@ -285,6 +285,13 @@ class OperandError extends TypeError {
 	}
 }
 
+class ReturnError extends SyntaxError {
+	constructor(value) {
+		super("Cannot return outside of an operator");
+		this.value = value;
+	}
+}
+
 class Operator {
 	constructor(operands, method, tailCall = false) {
 		this.operands = operands;
@@ -380,7 +387,7 @@ class Operator {
 
 		const exactTypes = actualTypes.every((type, i) => type.convertibleTo(operandTypes[i]));
 		if (exactTypes) {
-			const result = this.method.apply(this, args) ?? VOID;
+			let result = this.method.apply(this, args) ?? VOID;
 			if (!topLevel && this.tailCall)
 				return tryOperateStackless(result[0], result[1]);
 			return result;
@@ -699,12 +706,19 @@ function evalExpression(expr) {
 				}
 			}
 			
-			const returnValue = evalBody(expr.body);
-			
-			const result = tailCall ? [
-				evalExpression(tailCall.operator),
-				[returnValue, ...evalList(tailCall.arguments)]
-			] : returnValue;
+			let result;
+
+			try {
+				const returnValue = evalBody(expr.body);
+				
+				result = tailCall ? [
+					evalExpression(tailCall.operator),
+					[returnValue, ...evalList(tailCall.arguments)]
+				] : returnValue;
+			} catch (err) {
+				if (err instanceof ReturnError) result = err.value;
+				else throw err;
+			}
 
 			scopes = oldScopes;
 
@@ -938,6 +952,16 @@ currentScope["error"] = new Operator([
 	[new Type("real", [null]), "message"]
 ], string => {
 	throw new Error(string.asString());
+});
+
+currentScope["guard"] = new Operator([
+	[new Type(null), "accumulator"],
+	[new Type("operator"), "assertion"],
+	[new Type("operator"), "failure"]
+], (accumulator, assertion, failure) => {
+	if (!assertion.operate(accumulator))
+		throw new ReturnError(failure.operate());
+	return accumulator;
 });
 
 currentScope["SHOW_PRINTABLE_STRINGS"] = 0;

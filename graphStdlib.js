@@ -120,7 +120,7 @@ graphBarChart = graphContinuation([
 					{}
 						|> concat graphColor(color)
 						|> concat graphRect(center - diagonal, center + diagonal)
-						|> concat graphColor({ 0, 0, 0, 1 })
+						|> concat graphColor({ 0, 0, 0 })
 						|> concat graphErrorBar(
 							{ center(0), height }, { 0, 1 },
 							stdErr, CHART_BAR_WIDTH * 0.5
