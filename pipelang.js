@@ -540,6 +540,12 @@ function cannotUse(value, message) {
 	throw new TypeError(errorMessage);
 }
 
+function asBool(value) {
+	if (typeof value !== "number")
+		throw new TypeError(`Cannot use type '${typeOf(value)}' as a condition`);
+	return !!value;
+}
+
 function tryOperate(operator, args) {
 	const { length } = callStack;
 	const result = tryOperateStackless(operator, args);
@@ -990,7 +996,7 @@ currentScope["filter"] = new Operator([
 	[new Type("any", [null]), "data"],
 	[new Type("operator"), "predicate"],
 ], (data, predicate) => new List(
-	data.elements.filter(el => !!predicate.operate(el))
+	data.elements.filter(el => asBool(predicate.operate(el)))
 ));
 
 currentScope["rangeTo"] = new Operator([

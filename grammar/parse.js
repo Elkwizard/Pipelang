@@ -205,8 +205,10 @@ class AST {
 	});
 
 	static match(node, cls) {
-		if (Array.isArray(cls)) return cls.some(one => node instanceof one);
-		return node instanceof cls;
+		if (Array.isArray(cls)) return cls.some(one => AST.match(node, one));
+		if (cls === AST || cls.prototype instanceof AST) return node instanceof cls;
+		if (typeof cls === "string") return node.constructor.categories?.has?.(cls);
+		return cls(node);
 	}
 
 	static is(value) {
@@ -247,47 +249,47 @@ class AST {
 }
 
 const parse = (function () {
-	AST.Reference = class Reference extends AST { static labels = ["name"]; };
-AST.NumberValue = class NumberValue extends AST { static labels = ["value"]; };
-AST.StringValue = class StringValue extends AST { static labels = ["value"]; };
-AST.CharValue = class CharValue extends AST { static labels = ["value"]; };
-AST.Value = class Value extends AST { static labels = []; };
-AST.Field = class Field extends AST { static labels = ["key","value"]; };
-AST.List = class List extends AST { static labels = ["elements"]; };
-AST.Parameter = class Parameter extends AST { static labels = ["type","name","value","guard"]; };
-AST.Operator = class Operator extends AST { static labels = ["parameters","body"]; };
-AST.Nested = class Nested extends AST { static labels = ["replace"]; };
-AST.BaseExpression = class BaseExpression extends AST { static labels = []; };
-AST.Index = class Index extends AST { static labels = ["start","end"]; };
-AST.Arguments = class Arguments extends AST { static labels = ["arguments"]; };
-AST.Property = class Property extends AST { static labels = ["dynamic","key"]; };
-AST.Overload = class Overload extends AST { static labels = ["overload"]; };
-AST.Suffix = class Suffix extends AST { static labels = []; };
-AST.Expression = class Expression extends AST { static labels = ["base","step"]; };
-AST.Prefix = class Prefix extends AST { static labels = ["op","target"]; };
-AST.Composition = class Composition extends AST { static labels = ["left","op","right"]; };
-AST.Exponential = class Exponential extends AST { static labels = ["left","op","right"]; };
-AST.Product = class Product extends AST { static labels = ["left","op","right"]; };
-AST.Sum = class Sum extends AST { static labels = ["left","op","right"]; };
-AST.Type = class Type extends AST { static labels = ["left","op","right"]; };
-AST.Compare = class Compare extends AST { static labels = ["left","op","right"]; };
-AST.Logic = class Logic extends AST { static labels = ["left","op","right"]; };
-AST.Conditional = class Conditional extends AST { static labels = ["condition","ifTrue","ifFalse"]; };
-AST.Pipe = class Pipe extends AST { static labels = ["source","step"]; };
-AST.Assignment = class Assignment extends AST { static labels = ["isClass","target","op","value"]; };
-AST.Precedence = class Precedence extends AST { static labels = []; };
-AST.ListDestructure = class ListDestructure extends AST { static labels = ["names"]; };
-AST.DestructureField = class DestructureField extends AST { static labels = ["key","name"]; };
-AST.ObjectDestructure = class ObjectDestructure extends AST { static labels = ["fields"]; };
-AST.WrappedName = class WrappedName extends AST { static labels = ["name"]; };
-AST.Name = class Name extends AST { static labels = []; };
-AST.Alias = class Alias extends AST { static labels = ["overload","isClass","name"]; };
-AST.Reset = class Reset extends AST { static labels = ["value"]; };
-AST.Call = class Call extends AST { static labels = ["operator","arguments"]; };
-AST.Link = class Link extends AST { static labels = ["name","source"]; };
-AST.Function = class Function extends AST { static labels = ["name","parameters","body"]; };
-AST.Body = class Body extends AST { static labels = ["statements"]; };
-AST.root = class root extends AST { static labels = []; };
+	AST.Reference = class Reference extends AST { static labels = ["name"]; static categories = new Set([]); };
+AST.NumberValue = class NumberValue extends AST { static labels = ["value"]; static categories = new Set([]); };
+AST.StringValue = class StringValue extends AST { static labels = ["value"]; static categories = new Set([]); };
+AST.CharValue = class CharValue extends AST { static labels = ["value"]; static categories = new Set([]); };
+AST.Value = class Value extends AST { static labels = []; static categories = new Set([]); };
+AST.Field = class Field extends AST { static labels = ["key","value"]; static categories = new Set([]); };
+AST.List = class List extends AST { static labels = ["elements"]; static categories = new Set([]); };
+AST.Parameter = class Parameter extends AST { static labels = ["type","name","value","guard"]; static categories = new Set([]); };
+AST.Operator = class Operator extends AST { static labels = ["parameters","body"]; static categories = new Set([]); };
+AST.Nested = class Nested extends AST { static labels = ["replace"]; static categories = new Set([]); };
+AST.BaseExpression = class BaseExpression extends AST { static labels = []; static categories = new Set([]); };
+AST.Index = class Index extends AST { static labels = ["start","end"]; static categories = new Set([]); };
+AST.Arguments = class Arguments extends AST { static labels = ["arguments"]; static categories = new Set([]); };
+AST.Property = class Property extends AST { static labels = ["dynamic","key"]; static categories = new Set([]); };
+AST.Overload = class Overload extends AST { static labels = ["overload"]; static categories = new Set([]); };
+AST.Suffix = class Suffix extends AST { static labels = []; static categories = new Set([]); };
+AST.Expression = class Expression extends AST { static labels = ["base","step"]; static categories = new Set([]); };
+AST.Prefix = class Prefix extends AST { static labels = ["op","target"]; static categories = new Set([]); };
+AST.Composition = class Composition extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Exponential = class Exponential extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Product = class Product extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Sum = class Sum extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Type = class Type extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Compare = class Compare extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Logic = class Logic extends AST { static labels = ["left","op","right"]; static categories = new Set([]); };
+AST.Conditional = class Conditional extends AST { static labels = ["condition","ifTrue","ifFalse"]; static categories = new Set([]); };
+AST.Pipe = class Pipe extends AST { static labels = ["source","step"]; static categories = new Set([]); };
+AST.Assignment = class Assignment extends AST { static labels = ["isClass","target","op","value"]; static categories = new Set([]); };
+AST.Precedence = class Precedence extends AST { static labels = []; static categories = new Set([]); };
+AST.ListDestructure = class ListDestructure extends AST { static labels = ["names"]; static categories = new Set([]); };
+AST.DestructureField = class DestructureField extends AST { static labels = ["key","name"]; static categories = new Set([]); };
+AST.ObjectDestructure = class ObjectDestructure extends AST { static labels = ["fields"]; static categories = new Set([]); };
+AST.WrappedName = class WrappedName extends AST { static labels = ["name"]; static categories = new Set([]); };
+AST.Name = class Name extends AST { static labels = []; static categories = new Set([]); };
+AST.Alias = class Alias extends AST { static labels = ["overload","isClass","name"]; static categories = new Set([]); };
+AST.Reset = class Reset extends AST { static labels = ["value"]; static categories = new Set([]); };
+AST.Call = class Call extends AST { static labels = ["operator","arguments"]; static categories = new Set([]); };
+AST.Link = class Link extends AST { static labels = ["name","source"]; static categories = new Set([]); };
+AST.Function = class Function extends AST { static labels = ["name","parameters","body"]; static categories = new Set([]); };
+AST.Body = class Body extends AST { static labels = ["statements"]; static categories = new Set([]); };
+AST.root = class root extends AST { static labels = []; static categories = new Set([]); };
 	
 	class ParseError {
 		constructor(message, token, stack) {
@@ -417,33 +419,36 @@ AST.root = class root extends AST { static labels = []; };
 		const content = background("red", sourceContent) + (currentContent ? " AKA " + background("blue", currentContent) : "");
 		const newSource = prefix + content + suffix;
 		const lines = newSource.split("\n");
-		
+
 		const indexOf = pos => {
 			let index = 0;
 			for (let i = 0; i < pos; i++)
 				if (this.source[i] === "\n") index++;
 			
-			return Math.max(0, index - 1);
+			return index;
 		};
 
 		const startIndex = indexOf(this.position);
-		const endIndex = indexOf(endToken.position + endToken.content.length - 1) + 1;
+		const endIndex = indexOf(endToken.position + endToken.content.length - 1);
+
+		const firstShownIndex = Math.max(0, startIndex - 1);
+		const endShownIndex = Math.min(lines.length, endIndex + 2);
 
 		const excerptLines = lines.slice(
-			startIndex,
-			Math.min(lines.length, endIndex + 2)
+			firstShownIndex, endShownIndex
 		);
 
-		const maxWidth = String(excerptLines.length + startIndex).length;
+		const lineNumbers = excerptLines.map((_, i) => String(i + firstShownIndex + 1));
+		const maxWidth = lineNumbers.at(-1).length;
 
 		const excerpt = excerptLines
-			.map((line, i) => `${String(i + startIndex + 1).padStart(maxWidth)} | ${line}`)
+			.map((line, i) => `${lineNumbers[i].padStart(maxWidth)} │ ${line}`)
 			.join("\n")
 			.replace(/\t/g, "    ");
 
-		const bar = "=".repeat(40);
-		const output = `\n\n${bar}\n${excerpt}\n${bar}\n${message} (line ${startIndex + 1})\n\n`;
-		throw new SyntaxError(output);
+		const bar = "═".repeat(40);
+		const output = `\n\n${bar}\n${excerpt}\n${bar}\n${message} (line ${startIndex + 1})`;
+		throw new Error(output);
 		// throw new SyntaxError(message + "\n\n" + excerpt);
 	}
 
