@@ -70,7 +70,7 @@ body {
 }
 
 .wrap-word .log {
-	white-space: unset;
+	white-space: pre-wrap;
 	word-break: break-word;
 }
 
