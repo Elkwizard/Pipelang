@@ -2340,6 +2340,38 @@ specifyComplex = [
 
 const round = num => Math.round(num * 1e3) / 1e3;
 
+currentScope["groupBy"] = new Operator([
+	[new Type("operator", [2, null, null]), "objects"],
+	[new Type("real", [null]), "key"]
+], (objects, key) => {
+	const { field } = currentScope;
+	const groups = {};
+
+	const keyString = key.asString();
+
+	for (const object of objects.elements) {
+		let keyValue;
+		for (const element of object.elements) {
+			if (Operator.unwrap(element.elements[0]).asString() === keyString) {
+				keyValue = element.elements[1].operate(object);
+				break;
+			}
+		}
+
+		if (keyValue === undefined || keyValue === VOID) continue;
+		if (keyValue instanceof List && keyValue.isString)
+			keyValue = keyValue.asString();
+		else keyValue = keyValue.toString();
+
+		(groups[keyValue] ??= []).push(object);
+	}
+
+	return new List(Object.entries(groups).map(([key, values]) => field.operate(
+		List.fromString(key),
+		new List(values)
+	)));
+});
+
 currentScope["linReg"] = new Operator([
 	[new Type("real", [null, null]), "points"]
 ], points => {

@@ -202,9 +202,12 @@ class List {
 			result += String.fromCharCode(this.elements[i]);
 		return result;
 	}
-	get printable() {
-		if (!this.elements.length) return false;
-		if (typeof this.elements[0] !== "number") return false;
+	get isString() {
+		return	this.elements.length &&
+				typeof this.elements[0] === "number";
+	}
+	get isPrintable() {
+		if (!this.isString) return false;
 		return this.elements.every(char => {
 			return	(32 <= char && char <= 126) ||
 					char === 9 ||
@@ -215,11 +218,11 @@ class List {
 	toString() {
 		if (
 			currentScope.SHOW_PRINTABLE_STRINGS === 1 &&
-			this.printable
+			this.isPrintable
 		) return JSON.stringify(this.asString());	
 
 		let prefix = this.exotic ? this.type.toString() : "";
-		if (this.printable) prefix = JSON.stringify(this.asString()) + prefix;
+		if (this.isPrintable) prefix = JSON.stringify(this.asString()) + prefix;
 
 		let toJoin = [];
 
