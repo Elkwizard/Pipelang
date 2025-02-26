@@ -391,7 +391,7 @@ class Operator {
 		const exactTypes = actualTypes.every((type, i) => type.convertibleTo(operandTypes[i]));
 		if (exactTypes) {
 			let result = this.method.apply(this, args) ?? VOID;
-			if (!topLevel && this.tailCall)
+			if (!topLevel && this.tailCall && Array.isArray(result))
 				return tryOperateStackless(result[0], result[1]);
 			return result;
 		}
