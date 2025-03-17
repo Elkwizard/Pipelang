@@ -2496,6 +2496,18 @@ currentScope["parseCSV"] = new Operator([
 	}
 });
 
+// bad fix
+currentScope.median = new Operator([
+	[new Type("real", [null]), "array"]
+], array => {
+	array = array.toArray();
+	const len = array.length;
+	if (!len) return 0;
+	array.sort((a, b) => a - b);
+	if (len % 2 === 0) return (array[len / 2 - 1] + array[len / 2]) / 2;
+	return array[(len - 1) / 2];
+});
+
 // exec(`
 	
 // addMultiplier = [

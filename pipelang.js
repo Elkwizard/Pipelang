@@ -917,10 +917,7 @@ currentScope["as"] = new Operator([
 
 currentScope["createBaseType"] = new Operator([
 	[new Type("real", [null]), "name"]
-], name => {
-	name = name.asString();
-	return new Type(name);
-});
+], name => new Type(name.asString()));
 
 currentScope["operands"] = new Operator([
 	[new Type("operator"), "op"]
