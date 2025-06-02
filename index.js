@@ -48,7 +48,7 @@ currentScope["printChar"] = new Operator([
 currentScope["printMatrix"] = new Operator([
 	[new Type("real", [null, null]), "matrix"]
 ], matrix => {
-	matrix = currentScope.roundTo.operate(matrix, currentScope.PRINT_MATRIX_DIGITS);
+	matrix = currentScope.roundToDigits.operate(matrix, currentScope.PRINT_MATRIX_DIGITS);
 	const strings = matrix.toArray().map(r => r.map(v => v.toString()));
 	const columnWidths = new Array(strings[0].length).fill(0);
 	for (let i = 0; i < strings.length; i++) {

@@ -1,0 +1,19 @@
+class Tree = {
+	left: any,
+	right: any
+};
+Tree_t = Tree();
+toString = [
+	Tree_t T = 
+		indent = [
+			String s, String pf, String pr = s
+				|> split "\n"
+				|> is lines
+				|> indices
+				|> map [$ == 0 ? pf # lines($) : pr # lines($)]
+				|> join "\n"
+			];
+		L = toString(T.left);
+		R = toString(T.right);
+		indent(L, "─┬─", " │ ") # "\n" # indent(R, " └─", "   ");
+] & toString;

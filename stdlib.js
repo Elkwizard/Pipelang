@@ -288,14 +288,6 @@ padEnd = [
 		|> fill [= fillEl]
 		|> [padding = concat(list, padding)]
 ];
-roundTo = [
-	real number, real digits = 10
-		|> pow digits
-		|> is size
-		|> * number
-		|> round
-		|> / size
-];
 isNaN = [
 	real n = n != n
 ];
@@ -317,6 +309,10 @@ odd = [
 ];
 roundTo = [
 	real x, real scale, operator kind: round = kind(x / scale) * scale
+];
+roundToDigits = [
+	real x, real digits, operator kind: round = x
+		|> roundTo pow(10, -digits) kind
 ];
 count = [
 	any() list, value = list
@@ -1827,6 +1823,7 @@ factorial = [
 nCr = [
 	real n, real r = n
 		|> - r
+		|> guard [$ != 0] [1]
 		|> rangeTo
 		|> + r
 		|> + 1

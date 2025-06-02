@@ -1,0 +1,43 @@
+sinRandom(n) = random(n) * 2 - 1;
+genPoint() = sinRandom(2);
+genMatrix() = { sinRandom(3), sinRandom(3), { 0, 0, 1 } };
+genMatrixFn = [=
+	matrix = genMatrix();
+	[p = matrix |> transform prepend(p, 1) |> head];
+];
+functions = {
+	genMatrixFn(),
+	genMatrixFn(),
+	sin, cos
+};
+probability = {
+	1, 1, 1, 1
+};
+probability = probability / sum(probability);
+cdf = probability
+	|> indices
+	|> + 1
+	|> map [probability(0:$) |> sum];
+
+choose = [
+	any() list, real() distribution =
+		r = random();
+		cdf
+			|> indices
+			|> find [r < cdf($)]
+			|> [list($)];
+];
+
+evolve(points) = points |> map [choose(functions, probability)($)];
+simulate(points, count) = count ? simulate(evolve(points), count - 1) |> prepend points : { };
+
+points = rangeTo(100) |> fill genPoint;
+simulation = simulate(points, 100);
+
+toGraph = simulation
+	|> flat
+	|> map [graphRect($, $ + 0.01)(0)];
+
+graphBase()
+	|> concat toGraph
+	|> display;
